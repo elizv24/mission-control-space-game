@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MISSION CONTROL — design · launch · fly</title>
+<style>
+:root{
+  --bg0:#04070e; --bg1:#0a1322;
+  --panel:#0e1930; --panel2:#0b1424; --line:#22385a; --line2:#33507a;
+  --txt:#eaf3ff; --sub:#8fa6c9; --dim:#5d7396;
+  --cy:#33c6f0; --gr:#3ddc97; --yl:#ffc94d; --rd:#ff6b6b; --vi:#9d7bff; --or:#ff9a3d;
+  --mono:'Cascadia Code',ui-monospace,'Consolas','Roboto Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;background:var(--bg0);color:var(--txt);overflow:hidden;user-select:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+button:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#22385a;border-radius:99px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- backdrop ---------- */
+#sky{position:fixed;inset:0;z-index:0}
+#neb{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:.5}
+#neb i{position:absolute;border-radius:50%;filter:blur(100px);animation:drift 30s ease-in-out infinite alternate}
+#neb i:nth-child(1){width:46vmax;height:46vmax;left:-14vmax;top:-16vmax;background:radial-gradient(circle,#142c5c,transparent 65%)}
+#neb i:nth-child(2){width:40vmax;height:40vmax;right:-12vmax;top:22%;background:radial-gradient(circle,#0b3346,transparent 65%);animation-delay:-11s}
+#neb i:nth-child(3){width:32vmax;height:32vmax;left:26%;bottom:-18vmax;background:radial-gradient(circle,#221540,transparent 65%);animation-delay:-21s}
+@keyframes drift{to{transform:translate(6vmax,4vmax) scale(1.15)}}
+#app{position:relative;z-index:1;height:100%;display:flex;flex-direction:column}
+
+/* ---------- top bar ---------- */
+#bar{display:flex;align-items:center;gap:10px;padding:10px 16px;flex:none}
+#logo{font-weight:800;letter-spacing:2.5px;font-size:13px;color:#bcd3f5;white-space:nowrap;background:#0c1526;border:1px solid var(--line);padding:8px 14px;border-radius:10px;font-family:var(--mono)}
+#logo b{color:var(--cy)}
+#logo .vtag{font-size:9px;color:var(--dim);letter-spacing:1.5px;margin-left:8px}
+#crew{display:flex;gap:6px;margin-left:auto}
+.av{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#04101f;opacity:.18;font-family:var(--mono);transition:.2s}
+.av.on{opacity:1}
+.cbtn{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:#0c1526;color:#bcd3f5;font-weight:800;font-size:14px;transition:.15s}
+.cbtn:hover{border-color:var(--cy);color:#fff;transform:translateY(-1px)}
+
+/* ---------- screens ---------- */
+.screen{display:none;flex:1;flex-direction:column;align-items:center;overflow:auto;padding:4px 16px 26px}
+.screen.on{display:flex;animation:scrin .4s cubic-bezier(.2,.8,.25,1)}
+@keyframes scrin{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
+.hero{display:flex;align-items:center;gap:16px;margin-top:2px}
+.h-rocket{font-size:46px;animation:hrise 3.6s ease-in-out infinite;filter:drop-shadow(0 10px 16px #000a)}
+@keyframes hrise{0%,100%{transform:translateY(2px) rotate(-6deg)}50%{transform:translateY(-12px) rotate(4deg)}}
+h1{font-size:clamp(24px,4.2vw,40px);font-weight:800;letter-spacing:3px}
+.grad{background:linear-gradient(92deg,#39c9f2,#7fb2ff 55%,#b48cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hint{color:var(--sub);font-size:13.5px;margin:6px 0 8px;letter-spacing:.3px;text-align:center;max-width:720px}
+.slab{display:flex;align-items:center;gap:12px;width:min(94%,760px);color:#7f97bd;font-weight:800;letter-spacing:3px;font-size:11px;margin:16px 0 10px;font-family:var(--mono);flex:none}
+.slab::before,.slab::after{content:'';height:1px;flex:1;background:linear-gradient(90deg,transparent,var(--line) 30%,var(--line) 70%,transparent)}
+.slab b{color:#bcd3f5;font-size:10px;letter-spacing:1px}
+.cml{font-size:10px;font-weight:800;letter-spacing:2.5px;color:var(--cy);border:1px solid #33c6f044;background:#33c6f00a;border-radius:8px;padding:5px 14px;margin-bottom:4px;font-family:var(--mono)}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+
+/* ---------- panels & stats ---------- */
+.st{display:inline-flex;align-items:baseline;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 11px;font-family:var(--mono)}
+.st b{font-size:9px;letter-spacing:1.5px;color:var(--dim);font-weight:800}
+.st span{font-size:14.5px;font-weight:700;color:#eaf3ff}
+.st.good span{color:var(--gr)}.st.bad span{color:var(--rd)}.st.warn span{color:var(--yl)}.st.cy span{color:var(--cy)}.st.vi span{color:#c9b4ff}
+.hchip{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px 12px 5px;display:flex;flex-direction:column;gap:1px;min-width:74px}
+.hchip .lbl{font-size:8.5px;letter-spacing:1.6px;color:var(--dim);font-weight:800;font-family:var(--mono)}
+.hchip .val{font-family:var(--mono);font-size:15px;font-weight:700;color:#eaf3ff;line-height:1.1}
+.hchip .val.good{color:var(--gr)}.hchip .val.bad{color:var(--rd)}.hchip .val.cy{color:var(--cy)}.hchip .val.vi{color:#c9b4ff}
+.hbar{width:100%;height:5px;border-radius:99px;background:#081120;margin-top:3px;overflow:hidden;border:1px solid #1a2c48}
+.hbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#2f9dd9,#5fd8ff);transition:width .4s}
+.hbar i.hot{background:linear-gradient(90deg,#e0a83c,#ffd166)}
+.hbar i.max{background:linear-gradient(90deg,#d95050,#ff8f8f)}
+
+/* ---------- buttons ---------- */
+.btn{background:linear-gradient(180deg,#2ea8e6,#1567b8);border:1px solid #5cc9ff66;color:#03101f;font-weight:800;font-size:14px;letter-spacing:1.2px;padding:12px 26px;border-radius:12px;box-shadow:0 8px 22px -8px #2ea8e688,inset 0 1px 0 #ffffff66;transition:.15s;font-family:var(--mono)}
+.btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px -8px #2ea8e6aa,inset 0 1px 0 #ffffff66}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+.btn.ghost{background:#0c1526;border:1px solid var(--line);color:#bcd3f5;box-shadow:none}
+.btn.ghost:hover{border-color:var(--cy);color:#fff}
+.btn.danger{background:linear-gradient(180deg,#ff7a7a,#c93a3a);border-color:#ff9a9a66;color:#2a0505;box-shadow:0 8px 22px -8px #ff6b6b88}
+.btn.gold{background:linear-gradient(180deg,#ffd166,#d99a26);border-color:#ffe2a066;box-shadow:0 8px 22px -8px #ffc94d88}
+.btn.vio{background:linear-gradient(180deg,#b48cff,#6d3fd9);border-color:#c9b4ff66;color:#0d041f;box-shadow:0 8px 22px -8px #9d7bff88}
+
+/* ---------- pick ---------- */
+.goalb{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);border:1.5px solid var(--line);border-radius:11px;padding:9px 16px;font-weight:800;font-size:13.5px;color:#c6d6f2;transition:.15s}
+.goalb:hover{border-color:var(--cy);transform:translateY(-2px)}
+.goalb.sel{border-color:var(--gr);color:#aef0d6;background:#0d2119;box-shadow:0 0 14px #3ddc9722}
+.goalb .gi{font-size:16px}
+.mcard{width:236px;padding:18px 16px 14px;border-radius:16px;background:linear-gradient(180deg,#101c33,#0b1424);border:1.5px solid var(--line);text-align:center;cursor:pointer;transition:.18s;position:relative}
+.mcard:hover{border-color:#33c6f0aa;box-shadow:0 14px 34px -12px #33c6f044;transform:translateY(-4px)}
+.mcard.sel-m{border-color:var(--cy);box-shadow:0 0 0 3px #33c6f026}
+.mcard .sw{width:64px;height:64px;border-radius:50%;margin:0 auto 10px;position:relative;box-shadow:inset -12px -10px 22px #000000c9,0 0 26px var(--swg)}
+.mcard .sw.ring::after{content:'';position:absolute;left:-16px;top:50%;width:96px;height:26px;margin-top:-13px;border:2.5px solid #d9b98a;border-radius:50%;transform:rotate(-18deg);opacity:.85}
+.mcard .mn{font-weight:800;font-size:16px;letter-spacing:1.5px;font-family:var(--mono)}
+.mcard .mb{color:var(--sub);font-size:11.5px;min-height:28px;margin-top:4px;line-height:1.35}
+.mcard .diff{font-size:11px;letter-spacing:2px;margin:6px 0 10px}
+.mcard .mchips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.mcard .pick{position:absolute;top:-10px;right:-8px;width:28px;height:28px;border-radius:9px;background:linear-gradient(180deg,#2ea8e6,#1567b8);display:none;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#03101f;box-shadow:0 4px 12px #2ea8e688}
+.mcard.sel-m .pick{display:flex;animation:pop .3s}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.18)}100%{transform:scale(1)}}
+.sw-moon{background:radial-gradient(circle at 34% 30%,#f0f0f8,#9a9ab5 55%,#3c3c55);--swg:#c9c9ff33}
+.sw-cube{background:radial-gradient(circle at 34% 30%,#bfeaff,#2563eb 55%,#0d1c52);--swg:#38bdf855}
+.sw-mars{background:radial-gradient(circle at 34% 30%,#ffb08a,#c74334 55%,#43100a);--swg:#ff5d3c44}
+.sw-jup{background:radial-gradient(circle at 34% 30%,#ffe6c4,#c98b4e 55%,#5e3416);--swg:#e8a05c44}
+
+/* ---------- build ---------- */
+#b-res{margin-bottom:10px}
+#b-wrap{display:flex;gap:18px;width:100%;max-width:1080px;flex:1;min-height:0;align-items:stretch}
+#shelf{flex:1.15;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;align-content:start;overflow:auto;padding:4px}
+.pct{background:linear-gradient(180deg,#101c33,#0b1424);border:1.5px solid var(--line);border-radius:14px;padding:11px 12px 9px;text-align:left;cursor:pointer;transition:.15s;position:relative}
+.pct:hover{transform:translateY(-3px);border-color:#33c6f0aa;box-shadow:0 10px 24px -10px #33c6f044}
+.pct.no{opacity:.35;filter:grayscale(.7);cursor:not-allowed}
+.pct.match{border-color:#3ddc97aa}
+.pct.match::before{content:'GOAL MATCH';position:absolute;top:-8px;right:8px;font-size:7.5px;letter-spacing:1.5px;background:#0d2119;border:1px solid #3ddc9766;color:#aef0d6;border-radius:5px;padding:2px 6px;font-weight:800;font-family:var(--mono)}
+.pct .ph{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.pct .pi{font-size:19px;filter:drop-shadow(0 2px 4px #0008)}
+.pct .pn{font-weight:800;font-size:12px;letter-spacing:1px;font-family:var(--mono);color:#dce8fb}
+.pct .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px}
+.pct .pg{display:flex;justify-content:space-between;align-items:baseline}
+.pct .pg b{font-size:8px;letter-spacing:1.2px;color:var(--dim);font-weight:800;font-family:var(--mono)}
+.pct .pg span{font-size:12px;font-weight:700;color:#c6d6f2;font-family:var(--mono)}
+.pct .pg span.g{color:var(--gr)}.pct .pg span.v{color:#c9b4ff}
+#craftbox{flex:1;display:flex;flex-direction:column;align-items:center;min-width:300px}
+#pcv{width:100%;max-width:470px;border-radius:16px;border:1px solid var(--line);background:radial-gradient(120% 120% at 50% 0%,#0d1a31,#070e1c)}
+#b-foot{margin-top:10px}
+
+/* ---------- rocket screen ---------- */
+.rc{width:200px;padding:15px;border-radius:15px;background:linear-gradient(180deg,#101c33,#0b1424);border:1.5px solid var(--line);text-align:center;cursor:pointer;transition:.18s}
+.rc:hover{transform:translateY(-3px);border-color:#ffc94daa;box-shadow:0 12px 28px -10px #ffc94d33}
+.rc.sel{border-color:var(--yl);box-shadow:0 0 0 3px #ffc94d22}
+.rc.no{opacity:.35;filter:grayscale(.7);cursor:not-allowed}
+.rc .rn{font-weight:800;font-size:14px;letter-spacing:1.5px;font-family:var(--mono);margin-bottom:8px}
+.capbar{height:8px;border-radius:99px;background:#081120;border:1px solid #1a2c48;overflow:hidden;margin:8px 0 9px}
+.capbar i{display:block;height:100%;border-radius:99px;transition:width .35s}
+.oc{width:172px;padding:12px 10px;border-radius:14px;background:linear-gradient(180deg,#101c33,#0b1424);border:1.5px solid var(--line);text-align:center;cursor:pointer;transition:.18s}
+.oc:hover{transform:translateY(-3px);border-color:#3ddc97aa;box-shadow:0 10px 24px -10px #3ddc9733}
+.oc.sel{border-color:var(--gr);box-shadow:0 0 0 3px #3ddc9722}
+.oc.no{opacity:.35;filter:grayscale(.7);cursor:not-allowed}
+.oc .on2{font-weight:800;font-size:13px;letter-spacing:1.5px;font-family:var(--mono)}
+.oc .osub{font-size:10.5px;color:var(--sub);margin-top:5px;letter-spacing:.3px}
+.orbit-ic{width:44px;height:44px;margin:0 auto 6px;position:relative;border-radius:50%}
+.orbit-ic i{position:absolute;inset:0;border-radius:50%;border:1.5px dashed #3a5a86;animation:ospin 9s linear infinite}
+.orbit-ic i::after{content:'';position:absolute;top:-4px;left:50%;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:var(--cy);box-shadow:0 0 8px var(--cy)}
+.orbit-ic b{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:radial-gradient(circle at 35% 32%,#7fd8ff,#1d4ed8 70%)}
+@keyframes ospin{to{transform:rotate(360deg)}}
+
+/* ---------- sim ---------- */
+#hud{width:100%;max-width:1020px;display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:8px}
+#h-dots{display:flex;gap:3px;align-items:center;padding:0 4px}
+#h-dots i{width:8px;height:8px;border-radius:2px;background:#182a45;transition:.3s}
+#h-dots i.done{background:var(--gr)}
+#h-dots i.cur{background:var(--cy);box-shadow:0 0 8px var(--cy);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.35}}
+#h-sys{display:flex;gap:7px;align-items:center}
+.sysd{width:11px;height:11px;border-radius:3px;background:var(--gr);box-shadow:0 0 7px #3ddc9766;position:relative}
+.sysd.bad{background:var(--rd);box-shadow:0 0 7px #ff6b6b66;animation:blink 1s infinite}
+#simwrap{position:relative;width:100%;max-width:940px;flex:none}
+#mg{width:100%;display:block;border-radius:16px;border:1px solid var(--line);background:radial-gradient(130% 130% at 50% -10%,#0e1c36,#060c19);touch-action:none;box-shadow:0 24px 60px -24px #000d}
+.overlaycard{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#04070ecc;backdrop-filter:blur(4px);border-radius:16px;z-index:5}
+.overlaycard.on{display:flex;animation:scrin .3s}
+.pbox{max-width:560px;width:88%;background:linear-gradient(180deg,#101c33,#0b1424);border:1.5px solid var(--line2);border-radius:18px;padding:22px 26px;text-align:center;box-shadow:0 30px 70px -24px #000e}
+.ptag{font-size:9.5px;letter-spacing:3px;font-weight:800;font-family:var(--mono);margin-bottom:8px}
+.pico{font-size:44px;filter:drop-shadow(0 6px 14px #000a);margin-bottom:6px;animation:hrise 3s ease-in-out infinite}
+.pname{font-size:26px;font-weight:800;letter-spacing:3px;font-family:var(--mono)}
+.psub{color:var(--sub);font-size:13.5px;margin:10px auto 4px;max-width:420px;line-height:1.5}
+.ctl{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0 4px}
+.ctl .st{font-size:12px;padding:5px 10px}
+.pbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.pplayer{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-weight:800;font-size:12px;border-radius:9px;padding:5px 12px;margin-top:12px;color:#04101f}
+.rline{font-size:21px;font-weight:800;letter-spacing:2px;font-family:var(--mono);margin-bottom:14px}
+#mghint{text-align:center;color:var(--dim);font-size:12px;letter-spacing:1px;margin-top:8px;font-family:var(--mono);min-height:15px}
+
+/* ---------- toasts ---------- */
+#toasts{position:fixed;top:60px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:50;pointer-events:none;align-items:center}
+.toast{font-weight:800;font-size:14px;font-family:var(--mono);border-radius:10px;padding:9px 18px;animation:tin .25s, tout .4s 1.9s forwards;box-shadow:0 12px 30px -10px #000d;border:1px solid var(--line2);background:#0e1930e8}
+@keyframes tin{0%{transform:translateY(-14px) scale(.85);opacity:0}100%{transform:none;opacity:1}}
+@keyframes tout{to{opacity:0;transform:translateY(-8px)}}
+.toast.g{color:#aef0d6;border-color:#3ddc9766}
+.toast.r{color:#ffb1b1;border-color:#ff6b6b66}
+.toast.y{color:#ffe2a0;border-color:#ffc94d66}
+
+/* ---------- end ---------- */
+#s-end{position:relative;justify-content:center}
+#stamp{font-size:clamp(24px,4.6vw,42px);font-weight:800;letter-spacing:4px;border:3px solid;padding:10px 30px;border-radius:14px;transform:rotate(-4deg);animation:stampin .45s cubic-bezier(.2,2,.4,1);font-family:var(--mono)}
+@keyframes stampin{0%{transform:rotate(-4deg) scale(3);opacity:0}100%{transform:rotate(-4deg) scale(1);opacity:1}}
+#bigscore{font-size:clamp(52px,8.5vw,84px);font-weight:800;color:#aef0d6;text-shadow:0 0 34px #3ddc9744;font-family:var(--mono)}
+#stars-row{font-size:38px;letter-spacing:12px}
+#stars-row span{display:inline-block;opacity:0;animation:starpop .4s forwards}
+@keyframes starpop{0%{transform:scale(0) rotate(-40deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+#verdict{color:#bcd3f5;font-weight:700;font-size:16px}
+.cf{position:fixed;top:-16px;width:9px;height:14px;z-index:60;border-radius:2px;animation:fall linear forwards;pointer-events:none}
+.cf:nth-child(3n){border-radius:50%;width:10px;height:10px}
+@keyframes fall{to{transform:translateY(112vh) rotate(760deg)}}
+
+/* ---------- launch overlay ---------- */
+#ov{position:fixed;inset:0;background:#04070eee;z-index:70;display:none;align-items:center;justify-content:center;flex-direction:column;gap:24px;backdrop-filter:blur(5px)}
+#ov.on{display:flex}
+#cnt{width:140px;height:140px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:76px;font-weight:800;color:var(--yl);font-family:var(--mono);box-shadow:0 0 0 3px #ffc94d33,0 0 60px #ffc94d2e;animation:pop .5s}
+#lrocket{font-size:92px;position:relative;filter:drop-shadow(0 14px 24px #000a)}
+#lrocket.go{animation:fly 1s ease-in forwards}
+#lrocket .fl{position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);font-size:48px;animation:blink .18s infinite}
+@keyframes fly{to{transform:translateY(-115vh)}}
+#streaks{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.stk{position:absolute;width:2px;height:110px;background:linear-gradient(#ffffff00,#7fb2ff8f);animation:stkdn .45s linear infinite}
+@keyframes stkdn{from{transform:translateY(-130px)}to{transform:translateY(105vh)}}
+body.shakeX #app{animation:bigshk .55s}
+@keyframes bigshk{0%,100%{transform:none}20%{transform:translate(-7px,4px)}40%{transform:translate(6px,-5px)}60%{transform:translate(-5px,3px)}80%{transform:translate(4px,-3px)}}
+
+/* ---------- help ---------- */
+#help{position:fixed;inset:0;background:#04070ee8;z-index:80;display:none;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
+#help.on{display:flex}
+#helpbox{background:#0e1930f5;border:1.5px solid var(--line2);border-radius:18px;padding:22px 26px;max-width:560px;width:92vw;max-height:88vh;overflow:auto;box-shadow:0 30px 70px -20px #000e;animation:scrin .3s}
+#helpbox h3{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--cy);margin:14px 0 4px}
+#helpbox .hrow{align-items:flex-start}
+#helpbox .hrow{display:flex;align-items:center;gap:12px;font-size:13.5px;color:#c6d6f2;padding:6px 0;font-weight:600}
+#helpbox .hrow .hi{font-size:19px;width:26px;text-align:center}
+#helpbox .gbtn{margin-top:12px;width:100%}
+
+@media (max-width:760px){
+  #b-wrap{flex-direction:column;align-items:center}
+  #shelf{width:100%;flex:none;max-height:270px}
+  #craftbox{width:100%}
+  .hero{gap:8px}
+  .h-rocket{font-size:34px}
+  .pname{font-size:21px}
+  .pbox{padding:16px 14px}
+}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div id="neb"><i></i><i></i><i></i></div>
+<div id="app">
+  <div id="bar">
+    <div id="logo">MISSION<b>·</b>CONTROL<span class="vtag">SPACE APPS 2026</span></div>
+    <div id="crew"></div>
+    <button id="mute" class="cbtn" title="sound on/off">🔊</button>
+    <button id="helpbtn" class="cbtn" title="how to play?">?</button>
+  </div>
+
+  <!-- 1 · PICK -->
+  <section class="screen on" id="s-pick">
+    <div class="cml">CML 1 · CONCEPT &amp; GOALS</div>
+    <div class="hero"><div class="h-rocket">🚀</div><h1>DESIGN <span class="grad">A REAL MISSION</span></h1></div>
+    <div class="hint">Pick science goals, a destination and a crew — then build the spacecraft, launch it, and fly it month by month for <b id="p-months">12</b> months.</div>
+    <div class="slab">CREW <b>1–4 PLAYERS · HOT SEAT</b></div>
+    <div class="row" id="crewpick" style="margin-bottom:2px"></div>
+    <div class="slab">DIFFICULTY <b>BUDGET · TARGET · METEOR STORM</b></div>
+    <div class="row" id="diffpick"></div>
+    <div class="slab">ROLES <b>ONE ROLE PER PLAYER · TAP A CALLSIGN TO TAKE A ROLE · SOLO = ALL ROLES</b></div>
+    <div class="row" id="rolepick" style="max-width:820px"></div>
+    <div class="slab">SCIENCE GOALS <b>PICK UP TO 2 · MATCHED INSTRUMENTS SCORE ×1.4</b></div>
+    <div class="row" id="objrow"></div>
+    <div class="slab">DESTINATION</div>
+    <div class="row" id="missions" style="align-items:stretch"></div>
+    <div id="board-pick" style="width:100%;display:flex;flex-direction:column;align-items:center"></div>
+  </section>
+
+  <!-- 2 · BUILD -->
+  <section class="screen" id="s-build">
+    <div class="cml">CML 2 · TRADE STUDY</div>
+    <div class="slab">ASSEMBLY BAY <b>TAP A PART TO INSTALL · TAP ITS CHIP AROUND THE CRAFT TO REMOVE</b></div>
+    <div class="row" id="b-res"></div>
+    <div id="b-wrap">
+      <div id="shelf"></div>
+      <div id="craftbox">
+        <canvas id="pcv" width="460" height="320"></canvas>
+        <div class="row" id="b-foot"></div>
+        <button class="btn" id="to-rocket" style="margin-top:14px">NEXT: LAUNCH SETUP ➜</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · ROCKET -->
+  <section class="screen" id="s-rocket">
+    <div class="cml">CML 3 · POINT DESIGN</div>
+    <div class="row" id="r-res" style="margin-bottom:2px"></div>
+    <div class="slab">LAUNCH VEHICLE <b>MUST LIFT YOUR MASS</b></div>
+    <div class="row" id="rockets" style="align-items:stretch"></div>
+    <div class="slab">ORBIT <b>SCIENCE VS RISK TRADE</b></div>
+    <div class="row" id="orbits"></div>
+    <div class="slab">GROUND NETWORK <b>BOOSTS DATA → SCIENCE</b></div>
+    <div class="row" id="grounds"></div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn ghost" id="back-build">← BACK</button>
+      <button class="btn gold" id="do-launch" disabled>LAUNCH 🚀</button>
+    </div>
+  </section>
+
+  <!-- 4 · SIM -->
+  <section class="screen" id="s-sim">
+    <div id="hud">
+      <div class="hchip"><span class="lbl">FUNDS</span><span class="val" id="h-money">$0</span></div>
+      <div class="hchip"><span class="lbl">POWER NET</span><span class="val" id="h-pow">+0</span></div>
+      <div class="hchip"><span class="lbl">SCIENCE</span><span class="val vi" id="h-sci">0</span></div>
+      <div class="hchip" style="min-width:110px"><span class="lbl">DATA BUFFER</span><span class="val" id="h-buf">0/40</span><div class="hbar"><i id="h-buff"></i></div></div>
+      <div class="hchip"><span class="lbl">MONTH</span><span class="val" id="h-mon">1/12</span></div>
+      <div id="h-dots"></div>
+      <div class="hchip"><span class="lbl">SYSTEMS</span><div id="h-sys"></div></div>
+      <div class="hchip"><span class="lbl">CREW</span><span class="val cy" id="h-turn">P1</span></div>
+    </div>
+    <div id="simwrap">
+      <canvas id="mg" width="720" height="430"></canvas>
+      <div id="phasecard" class="overlaycard"></div>
+      <div id="resultcard" class="overlaycard"></div>
+    </div>
+    <div id="mghint"></div>
+    <div class="row" id="assist" style="margin-top:6px"></div>
+    <div id="tl" style="text-align:center;margin-top:8px"></div>
+  </section>
+
+  <!-- 5 · END -->
+  <section class="screen" id="s-end">
+    <div id="stamp">SUCCESS</div>
+    <div id="bigscore">0</div>
+    <div class="hint">final science return</div>
+    <div id="stars-row"></div>
+    <div id="verdict"></div>
+    <div class="row" id="breakdown" style="margin-top:14px"></div>
+    <div class="cml" style="margin-top:18px">POST-MISSION ANALYSIS · WHY THIS SCORE</div>
+    <div id="analysis" style="width:min(94%,620px);display:flex;flex-direction:column;gap:6px;margin:6px 0 4px"></div>
+    <div class="cml" style="margin-top:22px">CREW REPORT · MVP</div>
+    <div class="row" id="crewrep"></div>
+    <div class="cml" style="margin-top:22px">USER SEGMENT · YOUR DESIGN vs REAL NASA TWINS</div>
+    <div class="row" id="matches"></div>
+    <div id="board-end" style="width:100%;display:flex;flex-direction:column;align-items:center"></div>
+    <div class="row" style="margin-top:18px;gap:10px;flex-wrap:wrap;justify-content:center">
+      <button class="btn gold" id="retry">RETRY THIS DESIGN 🔧</button>
+      <button class="btn ghost" id="share">COPY DESIGN CODE 📋</button>
+      <button class="btn" id="again">NEW MISSION 🔁</button>
+    </div>
+    <div id="sharebox" style="display:none;margin-top:12px;width:min(94%,520px);text-align:center">
+      <div class="hint" style="margin-bottom:6px">Paste a design code to load someone else’s build</div>
+      <input id="importcode" placeholder="paste design code here" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#0c1526;color:#eaf3ff;font-family:var(--mono);font-size:13px">
+      <button class="btn ghost" id="do-import" style="margin-top:8px;padding:8px 16px;font-size:12px">LOAD DESIGN</button>
+    </div>
+  </section>
+</div>
+
+<div id="toasts"></div>
+<div id="ov"><div id="streaks"></div><div id="cnt">3</div><div id="lrocket">🚀<span class="fl">🔥</span></div></div>
+<div id="help"><div id="helpbox">
+  <div class="hrow"><span class="hi">🎯</span> Goals — matched instruments score ×1.4 science</div>
+  <div class="hrow"><span class="hi">⚖️⚡</span> Build — mass must fit the rocket, power must stay net-positive</div>
+  <div class="hrow"><span class="hi">✦</span> COLLECT — fly the craft, catch science particles in its bay</div>
+  <div class="hrow"><span class="hi">📡</span> SEND — fire data packets at Earth's dish · a LOCK ring guides your aim</div>
+  <div class="hrow"><span class="hi">⚖️</span> BALANCE — hold ← → to keep the power array level</div>
+  <div class="hrow"><span class="hi">☄️</span> SAVE — the laser auto-fires; aim it at meteors before impact</div>
+  <div class="hrow"><span class="hi">🔧</span> Damage — pay to repair, or fly degraded for a month</div>
+  <div class="hrow"><span class="hi">🔬</span> Science = score. Data overflows are lost — send it home!</div>
+  <h3>👥 CREW ROLES — ONE PER PLAYER</h3>
+  <div class="hrow"><span class="hi">🧑‍🚀</span><span><b>1 player — Commander:</b> flies every game.</span></div>
+  <div class="hrow"><span class="hi">👥</span><span><b>2 players:</b> Science &amp; Comms (collect, identify spectra, send, decode) · Power &amp; Defense (balance, routing, meteors, repairs).</span></div>
+  <div class="hrow"><span class="hi">👥</span><span><b>3 players:</b> Science Officer · Comms Officer · Systems Engineer (balance, routing, meteors, repairs).</span></div>
+  <div class="hrow"><span class="hi">👥</span><span><b>4 players:</b> Science Officer · Comms Officer · Power Engineer (balance, routing, repairs) · Defense Gunner (meteors).</span></div>
+  <div class="hrow"><span class="hi">🔁</span><span>Tap a callsign on the first screen to take a role — it swaps with whoever had it. Each month the game goes to the role that owns it.</span></div>
+  <h3>🎮 THE MINIGAMES</h3>
+  <div class="hrow"><span class="hi">✦</span><span><b>Collect Data</b> <i>(Science)</i> — move the craft with ← → or drag and catch falling particles. Gold ones are worth 3.</span></div>
+  <div class="hrow"><span class="hi">🔬</span><span><b>Spectrum ID</b> <i>(Science)</i> — match the sample's glowing spectral lines to the right element. 3 samples; correct and fast earns more science.</span></div>
+  <div class="hrow"><span class="hi">📡</span><span><b>Send Data</b> <i>(Comms)</i> — aim and fire packets at Earth's moving dish. A green LOCK ring means a sure hit.</span></div>
+  <div class="hrow"><span class="hi">📶</span><span><b>Signal Decode</b> <i>(Comms)</i> — watch the colour pattern, then repeat it. 3 rounds, longer each time. Clean decodes upload your data buffer.</span></div>
+  <div class="hrow"><span class="hi">⚖️</span><span><b>Balance Power</b> <i>(Power)</i> — hold ← → to keep the power beam inside the green zone.</span></div>
+  <div class="hrow"><span class="hi">🔌</span><span><b>Power Routing</b> <i>(Power)</i> — rotate scrambled conduit tiles to connect the solar feed to the battery. Two puzzles, faster solves give more power.</span></div>
+  <div class="hrow"><span class="hi">☄️</span><span><b>Save the Craft</b> <i>(Defense)</i> — the laser auto-fires; just aim it at meteors. Hits scorch the hull and can break systems.</span></div>
+  <div class="hrow"><span class="hi">🔧</span><span><b>Repairs</b> <i>(Power / Systems)</i> — pay to fix broken systems or fly degraded.</span></div>
+  <h3>✨ EXTRAS</h3>
+  <div class="hrow"><span class="hi">🛰️</span><span><b>Mission Control Boost</b> — while someone else flies, teammates can boost (2 each): +3 science, and it clears meteors.</span></div>
+  <div class="hrow"><span class="hi">🎲</span><span><b>Crew decisions</b> — at months 4, 7 and 10 the Flight Director picks how to handle a crisis.</span></div>
+  <div class="hrow"><span class="hi">🔴</span><span><b>Difficulty</b> — Easy / Normal / Hard change funds, the score target and the meteor storm.</span></div>
+  <div class="hrow"><span class="hi">🏆</span><span><b>High scores</b> — your best and latest missions are saved in this browser.</span></div>
+  <div class="hrow"><span class="hi">🔧</span><span><b>Retry this design</b> — after a flight you can keep the same spacecraft and tweak parts / orbit before launching again.</span></div>
+  <div class="hrow"><span class="hi">📋</span><span><b>Design code</b> — copy a short code of your build and share it; others can paste it to load the same design.</span></div>
+  <div class="hrow"><span class="hi">🔭</span><span><b>New parts</b> — Telescope (Deep Space), Battery pack, Onboard CPU, Attitude control.</span></div>
+  <button class="btn" id="helpok">GOT IT</button>
+</div></div>
+<script>
+/* ==============================================================
+   🎮 GAME DATA — Space Apps "Mission Design" · change numbers only
+   ============================================================== */
+const GAME = {
+  MONTHS: 12, OBJ_MATCH: 1.4, BUF_CAP: 40, GRANT: 8, SAVE_MONTHS: [4,8],
+  OBJECTIVES: [
+    { id:'ocean', icon:'🌊', name:'OCEANS' },
+    { id:'atmos', icon:'🌫️', name:'ATMOSPHERE' },
+    { id:'ice',   icon:'🧊', name:'ICE' },
+    { id:'land',  icon:'🏔️', name:'LAND' },
+    { id:'space', icon:'🌌', name:'DEEP SPACE' },
+  ],
+  MISSIONS: [
+    { id:'moon', name:'MOON WATCHER',  sw:'sw-moon', diff:1, budget:100, goal:120, riskMul:.8,  blurb:'Quiet lunar science orbit. Learn the ropes.' },
+    { id:'cube', name:'CUBESAT 101',   sw:'sw-cube', diff:2, budget:75,  goal:140, riskMul:.9,  blurb:'Tiny bus, tiny budget, tight mass.' },
+    { id:'mars', name:'MARS SCOUT',    sw:'sw-mars', diff:2, budget:115, goal:170, riskMul:1,   blurb:'Longer range, richer science return.' },
+    { id:'jup',  name:'JUPITER PROBE', sw:'sw-jup',  diff:3, budget:130, goal:220, riskMul:1.3, blurb:'Brutal radiation belt, huge reward.', ring:true },
+  ],
+  PARTS: [
+    { id:'cam1',  icon:'📷', name:'CAM A',       mass:20, pow:30, cost:10, sci:2, data:3, obj:['land'] },
+    { id:'cam2',  icon:'🎥', name:'CAM HD',      mass:55, pow:85, cost:18, sci:4, data:5, obj:['land','ocean'] },
+    { id:'spec',  icon:'🌈', name:'SPECTROMETER',mass:40, pow:60, cost:14, sci:3, data:4, obj:['atmos'] },
+    { id:'radar', icon:'📡', name:'RADAR',       mass:50, pow:75, cost:16, sci:4, data:5, obj:['ice','ocean'] },
+    { id:'tel',   icon:'🔭', name:'TELESCOPE',   mass:45, pow:55, cost:16, sci:5, data:4, obj:['space'] },
+    { id:'solar', icon:'🔆', name:'SOLAR ARRAY', mass:40, cost:12, gen:60, cat:'solar' },
+    { id:'batt',  icon:'🔋', name:'BATTERY PACK',mass:25, cost:9,  gen:15, cat:'solar' },
+    { id:'dish',  icon:'📶', name:'BIG DISH',    mass:30, pow:10, cost:11, cap:30, data:1, cat:'ant' },
+    { id:'comp',  icon:'💻', name:'ONBOARD CPU', mass:12, pow:20, cost:10, sci:1, data:2, cat:'pass' },
+    { id:'acs',   icon:'🧭', name:'ATTITUDE CTRL',mass:18, pow:15, cost:11, cat:'pass' },
+    { id:'shield',icon:'🛡️', name:'WHIPPLE SHIELD',mass:35, pow:5, cost:12, cat:'pass' },
+    { id:'spares',icon:'🧯', name:'SPARE KIT',   mass:10, cost:6,  cat:'pass' },
+  ],
+  ROCKETS: [
+    { id:'r1', name:'SCOUT',  cap:500,  cost:5 },
+    { id:'r2', name:'RUNNER', cap:800,  cost:12 },
+    { id:'r3', name:'TITAN',  cap:1200, cost:22 },
+  ],
+  ORBITS: [
+    { id:'leo', name:'LOW ORBIT',    sciMul:1,    riskMul:1,    use:0,  cap:0,   sub:'Easy start · no bonus' },
+    { id:'pol', name:'POLAR ORBIT',  sciMul:1.1,  riskMul:1,    use:15, cap:0,   sub:'Science +10% · needs +15 power' },
+    { id:'ell', name:'DEEP ELLIPSE', sciMul:1.25, riskMul:1.15, use:0,  cap:-10, sub:'Science +25% · buffer −10 · risky' },
+  ],
+  GROUNDS: [
+    { id:'dsn',  name:'DSN 70m',    dl:1.5,  cap:15, cost:10 },
+    { id:'pol',  name:'POLAR NET',  dl:1.25, cap:8,  cost:5 },
+    { id:'mini', name:'MINI RIG',   dl:1,    cap:0,  cost:0 },
+  ],
+  MATCHES: {
+    ocean:['SWOT','Jason-3'], atmos:['Terra','Aura'], ice:['ICESat-2','EOS Aqua'],
+    land:['Landsat 9','Terra'], space:['Hubble','JWST'],
+  },
+  FIX_COST: { solar:12, inst:15, ant:12 },
+};
+/* ==================== END OF DATA BLOCK ==================== */
+
+/* ---------- design code (save / share / compare) ---------- */
+function encodeDesign(){
+  if(!S.mission) return '';
+  const parts=GAME.PARTS.map(p=>inv(p.id)||0).join(',');
+  const o=S.objs.join('|');
+  const r=S.rocket?S.rocket.id:'';
+  const orb=S.orbit?S.orbit.id:'';
+  const g=S.ground?S.ground.id:'mini';
+  return btoa(unescape(encodeURIComponent([S.mission.id,S.diff,o,parts,r,orb,g].join('~')))).replace(/=+$/,'');
+}
+function decodeDesign(code){
+  try{
+    const raw=decodeURIComponent(escape(atob(code.trim())));
+    const [mid,diff,o,parts,r,orb,g]=raw.split('~');
+    const ms=GAME.MISSIONS.find(m=>m.id===mid); if(!ms) return null;
+    const installed={}; parts.split(',').forEach((n,i)=>{ if(+n>0&&GAME.PARTS[i]) installed[GAME.PARTS[i].id]=+n; });
+    return {
+      mission:ms, diff:diff||'normal', objs:(o||'').split('|').filter(Boolean),
+      installed, rocket:GAME.ROCKETS.find(x=>x.id===r)||null,
+      orbit:GAME.ORBITS.find(x=>x.id===orb)||null,
+      ground:GAME.GROUNDS.find(x=>x.id===g)||GAME.GROUNDS[2]
+    };
+  }catch(e){ return null; }
+}
+function applyDesign(d){
+  S.mission=d.mission; S.diff=d.diff; S.objs=d.objs.slice(); S.installed=Object.assign({},d.installed);
+  S.rocket=d.rocket; S.orbit=d.orbit; S.ground=d.ground;
+  S.money=Math.round(d.mission.budget*D().bud);
+  // refund nothing — money is full budget; parts still cost when we re-enter build if needed
+  // but since installed is set, we subtract their cost so budget stays honest
+  let spent=0; GAME.PARTS.forEach(p=>{ spent+=(inv(p.id)||0)*p.cost; });
+  S.money=Math.max(0,S.money-spent);
+  S.month=0; S.sci=0; S.buf=0; S.sys={solar:1,inst:1,ant:1};
+  S.hist=[]; S.assist={}; S.stats=Array.from({length:4},()=>({s:0,n:0,g:0,a:0}));
+  S.log=[]; S.overflowTotal=0; S.brokeLog=[]; S.powerNeg=0; S.resolved=false;
+}
+
+const AVCOLORS = ['#ff6b6b','#ffc94d','#3ddc97','#33c6f0'];
+const SWCOL = { moon:['#f0f0f8','#9a9ab5','#3c3c55'], cube:['#bfeaff','#2563eb','#0d1c52'],
+                mars:['#ffb08a','#c74334','#43100a'], jup:['#ffe6c4','#c98b4e','#5e3416'] };
+const SWBAND = { jup:true };
+const FAST = /fast/.test(location.search);
+const $ = s => document.querySelector(s);
+const rnd = Math.random;
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+
+let S = null;
+function freshState(){ return {
+  crew:1, diff:'normal', turn:0, hist:[], assist:{}, stats:Array.from({length:4},()=>({s:0,n:0,g:0,a:0})), roles:{}, mission:null, money:0, installed:{},
+  rocket:null, orbit:null, ground:GAME.GROUNDS[2],
+  objs:[], month:0, sci:0, buf:0,
+  sys:{solar:1, inst:1, ant:1},
+  phase:null, resolved:false,
+  log:[], overflowTotal:0, brokeLog:[], powerNeg:0,
+};}
+const inv  = id => S.installed[id]||0;
+const has  = id => inv(id)>0;
+function mass(){ return GAME.PARTS.reduce((a,p)=>a+inv(p.id)*p.mass,0); }
+function gen(){ let g=GAME.PARTS.reduce((a,p)=>a+(p.gen?inv(p.id)*p.gen:0),0);
+  // if solar system is offline, zero out all generation (arrays + batteries)
+  if(!S.sys.solar) g=0;
+  return Math.max(0,g); }
+function useP(){ return GAME.PARTS.reduce((a,p)=>a+(p.pow>0?inv(p.id)*p.pow:0),0)+(S.orbit?S.orbit.use:0); }
+function net(){ return gen()-useP(); }
+function alive(){ return S.sys.inst && net()>=0; }
+function sciPerMo(){ let s=0;
+  GAME.PARTS.forEach(p=>{ if(!p.sci||!inv(p.id)) return;
+    const m=p.obj&&p.obj.some(o=>S.objs.includes(o));
+    s+=inv(p.id)*p.sci*(m?GAME.OBJ_MATCH:1); });
+  return Math.round(s*(S.orbit?S.orbit.sciMul:1)); }
+function dataPerMo(){ return GAME.PARTS.reduce((a,p)=>a+(p.data?inv(p.id)*p.data:0),0); }
+function bufCap(){ return GAME.BUF_CAP+(has('dish')?30:0)+(S.orbit?S.orbit.cap:0)+(S.ground?S.ground.cap:0); }
+function groundDl(){ return S.ground?S.ground.dl:1; }
+function objOn(id){ return S.objs.includes(id); }
+function addData(n){ const cap=bufCap(); S.buf+=n; if(S.buf>cap){ overflowed=S.buf-cap; S.overflowTotal=(S.overflowTotal||0)+overflowed; S.buf=cap; S.log.push({m:S.month+1,t:'overflow',n:overflowed}); } else overflowed=0; }
+let overflowed=0;
+
+/* ---------- tiny synth ---------- */
+let AC=null, MUTE=false;
+function ac(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(AC&&AC.state==='suspended') AC.resume(); return AC; }
+function beep(f,d,type='sine',v=.13,when=0,slide=0){
+  if(MUTE) return; const a=ac(); if(!a) return;
+  try{ const t0=a.currentTime+when, o=a.createOscillator(), g=a.createGain();
+    o.type=type; o.frequency.setValueAtTime(f,t0);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(30,f+slide),t0+d);
+    g.gain.setValueAtTime(v,t0); g.gain.exponentialRampToValueAtTime(.001,t0+d);
+    o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0+d+.03); }catch(e){} }
+const snd={
+  click:()=>beep(430,.05,'square',.045),
+  tick:()=>beep(760,.06,'square',.08),
+  good:()=>{beep(640,.09,'sine',.11);beep(860,.15,'sine',.11,.09)},
+  bad:()=>beep(190,.22,'sawtooth',.12,0,-110),
+  coin:()=>{beep(920,.06,'square',.08);beep(1250,.09,'square',.08,.06)},
+  catch:()=>beep(720+Math.random()*160,.06,'sine',.09),
+  zap:()=>beep(980,.09,'sawtooth',.09,0,-760),
+  hit:()=>beep(120,.18,'triangle',.16,0,-60),
+  alarm:()=>{beep(330,.12,'square',.12);beep(220,.16,'square',.12,.14)},
+  launch:()=>{beep(70,1,'sawtooth',.2,0,70);beep(46,1.3,'triangle',.2,.05,-16)},
+  fan:()=>{[523,659,784,1046].forEach((f,i)=>beep(f,.18,'triangle',.12,i*.13))},
+};
+
+/* ---------- parallax starfield ---------- */
+(function(){
+  const sky=$('#sky'), ctx=sky.getContext('2d'); let W,H,STARS=[],SHOOT=[];
+  function size(){ const d=Math.min(2,window.devicePixelRatio||1); W=sky.width=innerWidth*d; H=sky.height=innerHeight*d; }
+  addEventListener('resize',size); size();
+  const LAY=[{n:110,r:[.4,1.1],a:[.12,.42],v:.7},{n:55,r:[.8,1.7],a:[.28,.75],v:1.4},{n:26,r:[1.3,2.4],a:[.5,1],v:2.4}];
+  LAY.forEach(L=>{ for(let i=0;i<L.n;i++) STARS.push({ x:Math.random(),y:Math.random(),r:L.r[0]+rnd()*(L.r[1]-L.r[0]),
+    a:L.a[0]+rnd()*(L.a[1]-L.a[0]),ph:rnd()*6.28,v:L.v*(.5+rnd())*(rnd()<.5?1:-1) }); });
+  let next=2200,last=performance.now();
+  function loop(now){ const dt=Math.min(60,now-last); last=now;
+    ctx.clearRect(0,0,W,H);
+    for(const s of STARS){ s.ph+=s.v*dt/1600;
+      ctx.globalAlpha=s.a*(.5+.5*Math.abs(Math.sin(s.ph)));
+      ctx.fillStyle=rnd?'#cfe0ff':'#cfe0ff';
+      ctx.beginPath(); ctx.arc(s.x*W,s.y*H,s.r,0,6.283); ctx.fill(); }
+    next-=dt;
+    if(next<=0){ next=2800+rnd()*4800;
+      SHOOT.push({x:rnd()*.75*W,y:rnd()*.35*H,vx:(7+rnd()*4)*2,vy:(2.6+rnd()*1.8)*2,life:850}); }
+    for(let i=SHOOT.length-1;i>=0;i--){ const m=SHOOT[i]; m.life-=dt; m.x+=m.vx*dt/16; m.y+=m.vy*dt/16;
+      if(m.life<=0){ SHOOT.splice(i,1); continue; }
+      ctx.globalAlpha=Math.min(1,m.life/450);
+      const g=ctx.createLinearGradient(m.x,m.y,m.x-m.vx*13,m.y-m.vy*13);
+      g.addColorStop(0,'#ffffff'); g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.strokeStyle=g; ctx.lineWidth=1.8; ctx.beginPath();
+      ctx.moveTo(m.x,m.y); ctx.lineTo(m.x-m.vx*13,m.y-m.vy*13); ctx.stroke(); }
+    ctx.globalAlpha=1; requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+})();
+
+/* ---------- shared canvas art: spacecraft & planets ---------- */
+function rr(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r);
+  g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+// o:{panes:0|1|2, dish, deadS, deadI, deadA, flame, t (time), shield}
+function drawCraft(g,cx,cy,s,o={}){
+  const t=o.t||0;
+  g.save(); g.translate(cx,cy); g.scale(s,s);
+  // flame
+  if(o.flame>0){ const fl=o.flame*(0.8+0.4*Math.sin(t*30));
+    const fg=g.createLinearGradient(0,36,0,36+46*fl);
+    fg.addColorStop(0,'#ffd166'); fg.addColorStop(.5,'#ff8c3c'); fg.addColorStop(1,'#ff5d3c00');
+    g.fillStyle=fg; g.beginPath(); g.moveTo(-10,36); g.lineTo(10,36); g.lineTo(0,36+46*fl); g.closePath(); g.fill(); }
+  // solar wings
+  const wW=o.panes===2?78:o.panes===1?46:0;
+  for(const side of [-1,1]){
+    if(!wW) continue;
+    const x0=side===1?38:-38-wW;
+    g.fillStyle=(o.deadS?'#3a4356':'#0c2f6e');
+    rr(g,x0,-17,wW,34,4); g.fill();
+    if(!o.deadS){ g.strokeStyle='#1d5fd0'; g.lineWidth=1;
+      for(let i=1;i<wW/13;i++){ g.beginPath(); g.moveTo(x0+i*13,-17); g.lineTo(x0+i*13,17); g.stroke(); }
+      for(let i=1;i<5;i++){ g.beginPath(); g.moveTo(x0,-17+i*6.8); g.lineTo(x0+wW,-17+i*6.8); g.stroke(); }
+      // moving sheen
+      const sh=((t*.35)%1.6)-0.3;
+      const sg=g.createLinearGradient(x0+sh*wW-14,0,x0+sh*wW+14,0);
+      sg.addColorStop(0,'#7fd8ff00'); sg.addColorStop(.5,'#bfeaff55'); sg.addColorStop(1,'#7fd8ff00');
+      g.fillStyle=sg; rr(g,x0,-17,wW,34,4); g.fill(); }
+    g.strokeStyle='#3a5a86'; g.lineWidth=1.5; rr(g,x0,-17,wW,34,4); g.stroke();
+    g.fillStyle='#8fa6c9'; g.fillRect(side===1?30:-34,-3,8,6);
+  }
+  // hull
+  const hg=g.createLinearGradient(0,-26,0,38); hg.addColorStop(0,'#e8edf8'); hg.addColorStop(.55,'#b9c4dc'); hg.addColorStop(1,'#7f8dad');
+  g.fillStyle=hg; rr(g,-30,-26,60,64,11); g.fill();
+  g.strokeStyle='#2c3a5a'; g.lineWidth=1.6; rr(g,-30,-26,60,64,11); g.stroke();
+  // gold foil band
+  const go=g.createLinearGradient(0,14,0,30); go.addColorStop(0,'#e8b654'); go.addColorStop(1,'#a8741f');
+  g.fillStyle=go; g.fillRect(-30,15,60,15);
+  g.fillStyle='#00000022'; for(let i=0;i<6;i++) g.fillRect(-30+i*10+2,16,4,13);
+  // window
+  const wg=g.createRadialGradient(-3,-9,2,0,-6,11);
+  wg.addColorStop(0,o.deadI?'#5d7396':'#c8f4ff'); wg.addColorStop(1,o.deadI?'#3a4356':'#1668d9');
+  g.fillStyle=wg; g.beginPath(); g.arc(0,-6,10,0,6.283); g.fill();
+  g.strokeStyle='#4a5878'; g.lineWidth=2.5; g.stroke();
+  // instrument lens
+  if(o.deadI!==undefined){ g.fillStyle=o.deadI?'#3a4356':'#9d7bff';
+    g.beginPath(); g.arc(0,24,4.5,0,6.283); g.fill();
+    if(!o.deadI){ g.globalAlpha=.4+.4*Math.sin(t*5); g.strokeStyle='#c9b4ff'; g.lineWidth=1.4;
+      g.beginPath(); g.arc(0,24,7.5,0,6.283); g.stroke(); g.globalAlpha=1; } }
+  // antenna
+  g.strokeStyle='#8fa6c9'; g.lineWidth=2; g.beginPath(); g.moveTo(0,-26); g.lineTo(0,-38); g.stroke();
+  g.fillStyle=(Math.sin(t*4)>0)?'#ff6b6b':'#7a2e2e'; g.beginPath(); g.arc(0,-40,2.6,0,6.283); g.fill();
+  // dish
+  if(o.dish){ g.save(); g.translate(0,-44);
+    g.fillStyle=o.deadA?'#5d7396':'#f0f4ff'; g.beginPath(); g.ellipse(0,0,13,9,0,0,6.283); g.fill();
+    g.strokeStyle='#4a5878'; g.lineWidth=1.5; g.stroke();
+    g.fillStyle=o.deadA?'#3a4356':'#33c6f0'; g.beginPath(); g.arc(0,-2,2.4,0,6.283); g.fill();
+    g.restore(); }
+  g.restore();
+}
+// pal:[c1,c2,c3]  rot: band rotation  ring: saturn ring
+function drawPlanet(g,x,y,r,pal,t,opt={}){
+  g.save();
+  // atmosphere glow
+  g.fillStyle='rgba(90,160,255,0)'; 
+  const ag=g.createRadialGradient(x,y,r*.8,x,y,r*1.35);
+  ag.addColorStop(0,pal[0]+'00'); ag.addColorStop(.75,pal[1]+'2e'); ag.addColorStop(1,pal[1]+'00');
+  g.fillStyle=ag; g.beginPath(); g.arc(x,y,r*1.35,0,6.283); g.fill();
+  // sphere
+  const bg=g.createRadialGradient(x-r*.38,y-r*.4,r*.1,x,y,r);
+  bg.addColorStop(0,pal[0]); bg.addColorStop(.55,pal[1]); bg.addColorStop(1,pal[2]);
+  g.fillStyle=bg; g.beginPath(); g.arc(x,y,r,0,6.283); g.fill();
+  // surface bands / clouds
+  if(opt.bands||opt.clouds){ g.save(); g.beginPath(); g.arc(x,y,r,0,6.283); g.clip();
+    const rot=(opt.rot||0)+(t||0)*.02;
+    for(let i=0;i<5;i++){ const yy=y-r+ (i+.5)*(2*r/5) + Math.sin(rot+i)*4;
+      g.fillStyle=opt.bands?(i%2?'rgba(0,0,0,0.13)':'rgba(255,255,255,0.10)'):'rgba(255,255,255,0.07)';
+      g.beginPath(); g.ellipse(x+Math.sin(rot*1.7+i*1.3)*r*.18,yy,r*.95,r/(opt.bands?11:14),opt.bands?-.12:0,0,6.283); g.fill(); }
+    g.restore(); }
+  // night side
+  g.save(); g.beginPath(); g.arc(x,y,r,0,6.283); g.clip();
+  const ng=g.createRadialGradient(x-r*.45,y-r*.45,r*.2,x-r*.45,y-r*.45,r*2.1);
+  ng.addColorStop(.62,'#00000000'); ng.addColorStop(1,'#000000bb');
+  g.fillStyle=ng; g.fillRect(x-r,y-r,2*r,2*r); g.restore();
+  // ring
+  if(opt.ring){ g.save(); g.translate(x,y); g.rotate(-.28);
+    g.strokeStyle='#d9b98a'; g.lineWidth=5; g.globalAlpha=.75;
+    g.beginPath(); g.ellipse(0,0,r*1.55,r*.4,0,Math.PI*.06,Math.PI*.94); g.stroke();
+    g.strokeStyle='#a8834f'; g.lineWidth=2;
+    g.beginPath(); g.ellipse(0,0,r*1.75,r*.46,0,Math.PI*.06,Math.PI*.94); g.stroke();
+    g.globalAlpha=1; g.restore(); }
+  g.restore();
+}
+function drawRock(g,x,y,r,rot){
+  g.save(); g.translate(x,y); g.rotate(rot);
+  const rg=g.createRadialGradient(-r*.3,-r*.3,r*.2,0,0,r);
+  rg.addColorStop(0,'#9c8f80'); rg.addColorStop(1,'#4a4038');
+  g.fillStyle=rg; g.beginPath();
+  for(let i=0;i<8;i++){ const a=i/8*6.283, rr2=r*(0.8+((i*7)%5)/14);
+    i?g.lineTo(Math.cos(a)*rr2,Math.sin(a)*rr2):g.moveTo(Math.cos(a)*rr2,Math.sin(a)*rr2); }
+  g.closePath(); g.fill(); g.strokeStyle='#2a2420'; g.lineWidth=1.4; g.stroke();
+  g.fillStyle='#00000033'; g.beginPath(); g.arc(r*.25,r*.1,r*.24,0,6.283); g.fill();
+  g.beginPath(); g.arc(-r*.3,r*.3,r*.15,0,6.283); g.fill();
+  g.restore();
+}
+
+/* ---------- crew roles, assists, crises, timeline ---------- */
+const CALL=['ASTRA','NOVA','ORION','VEGA'];
+const RSETS={
+ 1:[{n:'COMMANDER',i:'🧑‍🚀',ph:['collect','send','balance','save','repair']}],
+ 2:[{n:'SCIENCE & COMMS',i:'✦📡',ph:['collect','send']},{n:'POWER & DEFENSE',i:'⚖️☄️',ph:['balance','save','repair']}],
+ 3:[{n:'SCIENCE OFFICER',i:'✦',ph:['collect']},{n:'COMMS OFFICER',i:'📡',ph:['send']},{n:'SYSTEMS ENGINEER',i:'⚖️☄️',ph:['balance','save','repair']}],
+ 4:[{n:'SCIENCE OFFICER',i:'✦',ph:['collect']},{n:'COMMS OFFICER',i:'📡',ph:['send']},{n:'POWER ENGINEER',i:'⚖️',ph:['balance','repair']},{n:'DEFENSE GUNNER',i:'☄️',ph:['save']}]};
+function applyRoles(){ S.roles={}; RSETS[S.crew].forEach((r,i)=>r.ph.forEach(ph=>S.roles[ph]=S.assign[i])); }
+function defRoles(){ S.assign=RSETS[S.crew].map((r,i)=>i); applyRoles(); }
+function roleOf(ph){ return RSETS[S.crew].find(r=>r.ph.includes(BASE[ph]||ph)); }
+function owner(ph){ return S.roles[BASE[ph]||(ph==='repair'?'balance':ph)]||0; }
+function pname(i){ return 'P'+(i+1)+' '+CALL[i]; }
+function renderRoles(){ const c=$('#rolepick'); c.innerHTML='';
+  RSETS[S.crew].forEach((r,ri)=>{ const d=document.createElement('div'); d.className='st'; d.style.cssText='gap:8px;padding:6px 10px';
+    d.innerHTML='<span>'+r.i+'</span><b>'+r.n+'</b><small style="color:var(--dim);font-size:10px">'+r.ph.flatMap(p=>[p,...Object.keys(BASE).filter(k=>BASE[k]===p)]).map(p=>TASKN[p]).join(' · ')+'</small>';
+    for(let p=0;p<S.crew;p++){ const b=document.createElement('button'); b.className='av on';
+      b.style.cssText='width:auto;padding:0 7px;background:'+AVCOLORS[p]+';opacity:'+(S.assign[ri]===p?1:.2);
+      b.textContent=CALL[p]; b.onclick=()=>{ const rj=S.assign.indexOf(p); S.assign[rj]=S.assign[ri]; S.assign[ri]=p; applyRoles(); renderRoles(); }; d.appendChild(b); }
+    c.appendChild(d); }); }
+function renderAssist(){ const a=$('#assist'); a.innerHTML=''; if(!MG||S.crew<2) return;
+  for(let p=0;p<S.crew;p++){ if(p===S.turn) continue; const left=2-(S.assist[p]||0);
+    const b=document.createElement('button'); b.className='btn ghost'; b.disabled=left<=0;
+    b.style.cssText='padding:5px 10px;font-size:11px;border-color:'+AVCOLORS[p];
+    b.textContent=CALL[p]+' 🛰️ BOOST ('+left+')';
+    b.onclick=()=>{ if(!MG) return; S.assist[p]=(S.assist[p]||0)+1; S.stats[p].a++; S.sci+=3;
+      if(S.phase==='save'&&MG.d.mets) MG.d.mets.length=0;
+      toast(CALL[p]+' · MISSION CONTROL BOOST +3 sci','y'); renderHUD(); renderAssist(); };
+    a.appendChild(b); } }
+function renderTL(){ const t=$('#tl'); t.innerHTML='';
+  for(let m=0;m<GAME.MONTHS;m++){ const i=document.createElement('i'); const w=m<S.hist.length?S.hist[m]:-1;
+    i.style.cssText='display:inline-block;width:18px;height:8px;border-radius:3px;margin:0 2px;background:'+(w>=0?AVCOLORS[w]:m===S.month?'#ffffff66':'#1a2c48'); t.appendChild(i); } }
+/* ---------- saved history + high scores (this browser) ---------- */
+function ldb(){ try{ return JSON.parse(localStorage.getItem('mc_runs')||'[]'); }catch(e){ return []; } }
+function saveRun(r){ const a=ldb(); a.push(r); const b=a.slice(-50); try{ localStorage.setItem('mc_runs',JSON.stringify(b)); }catch(e){} return b; }
+function clearBoard(){ try{ localStorage.removeItem('mc_runs'); }catch(e){} renderBoards(); }
+function boardHTML(newId){ const a=ldb(); if(!a.length) return '';
+  const row=(r,i)=>`<div class="st${r.id===newId?' good':''}" style="width:100%;justify-content:space-between;gap:10px"><b>${i!==undefined?(i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1))+' ':''}${r.m}</b><span style="font-size:12.5px">${r.s} pts · ${'⭐'.repeat(r.st)||'—'} · ${r.c}P${r.df&&r.df!=='normal'?' · '+r.df.toUpperCase():''}${r.mv?' · 🏅'+r.mv:''} · ${r.d}</span></div>`;
+  const top=[...a].sort((x,y)=>y.s-x.s).slice(0,5), last=[...a].reverse().slice(0,5);
+  const box='width:min(94%,600px);display:flex;flex-direction:column;gap:6px';
+  return `<div class="slab">🏆 HIGH SCORES <b>TOP 5</b></div><div style="${box}">${top.map((r,i)=>row(r,i)).join('')}</div>
+  <div class="slab">🕘 LAST MISSIONS</div><div style="${box}">${last.map(r=>row(r)).join('')}</div>
+  <button class="btn ghost" style="margin-top:12px;padding:6px 12px;font-size:11px" onclick="clearBoard()">CLEAR HISTORY</button>`; }
+function renderBoards(id){ ['pick','end'].forEach(k=>{ const e=$('#board-'+k); if(e) e.innerHTML=boardHTML(id); }); }
+const CRISES=[
+ {t:'☀️ SOLAR FLARE',d:'A flare is inbound. Shield the electronics?',a:['SHIELD  −$10',()=>{S.money=Math.max(0,S.money-10);return 'Shielded. Systems safe.';}],
+  b:['RISK IT',()=>{ if(rnd()<.5){S.sys.inst=0;return 'Instrument fried! Repair needed.';} S.sci+=6; return 'Lucky! +6 science.'; }]},
+ {t:'🌠 RARE ALIGNMENT',d:'A once-a-mission viewing window opens. Spend funds to exploit it?',a:['GO FOR IT  −$8',()=>{ if(S.money<8) return 'Not enough funds.'; S.money-=8; S.sci+=12; return '+12 science!'; }],
+  b:['PLAY SAFE',()=>'Window missed.']},
+ {t:'💾 BUFFER GLITCH',d:'Corrupted packets in the data buffer.',a:['PURGE HALF',()=>{S.buf=Math.floor(S.buf/2);return 'Buffer halved.';}],
+  b:['IGNORE IT',()=>{S.sci=Math.max(0,S.sci-4);return '−4 science.';}]}];
+function crisis(){ const c=CRISES[Math.floor(rnd()*CRISES.length)], pc=$('#phasecard'), fd=S.month%S.crew;
+  pc.innerHTML=`<div class="pbox"><div class="ptag" style="color:#ffc94d">CREW DECISION · MONTH ${S.month+1}</div><div class="pname">${c.t}</div><div class="psub">${c.d}</div>
+  <div class="pplayer" style="background:${AVCOLORS[fd]}">▶ ${S.crew>1?pname(fd)+' · ':''}FLIGHT DIRECTOR · discuss, then decide</div>
+  <div class="pbtns"><button class="btn gold" id="ca">${c.a[0]}</button><button class="btn ghost" id="cb">${c.b[0]}</button></div></div>`;
+  pc.classList.add('on'); renderHUD();
+  const go=o=>()=>{ toast(o[1](),'y'); pc.classList.remove('on'); showPhase(); };
+  $('#ca').onclick=go(c.a); $('#cb').onclick=go(c.b); }
+
+/* ---------- crew / top bar ---------- */
+function renderCrew(){ const c=$('#crew'); c.innerHTML='';
+  for(let i=0;i<S.crew;i++){ const a=document.createElement('div'); a.className='av on';
+    a.style.background=AVCOLORS[i]; a.style.boxShadow='0 0 10px '+AVCOLORS[i]+'88';
+    a.textContent='P'+(i+1); c.appendChild(a);} }
+function renderCrewPick(){ const c=$('#crewpick'); c.innerHTML='';
+  for(let i=1;i<=4;i++){ const b=document.createElement('button'); b.className='av'+(i<=S.crew?' on':'');
+    b.style.background=AVCOLORS[i-1]; b.style.boxShadow=i<=S.crew?'0 0 8px '+AVCOLORS[i-1]+'66':'none';
+    b.style.width='32px'; b.style.height='32px'; b.style.fontSize='12px'; b.style.borderRadius='9px';
+    b.style.opacity=i<=S.crew?1:.18; b.textContent='P'+i; b.title=i+' player'+(i>1?'s':'');
+    b.onclick=()=>{ S.crew=i; defRoles(); renderCrewPick(); renderCrew(); renderRoles(); };
+    c.appendChild(b);} }
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); $('#'+id).classList.add('on'); }
+function toast(txt,kind){ const t=document.createElement('div'); t.className='toast '+(kind||''); t.textContent=txt;
+  $('#toasts').appendChild(t); setTimeout(()=>t.remove(),2400); }
+
+/* ================= 1 · PICK ================= */
+function proceedToBuild(){ show('s-build'); renderBuildAll(); }
+function renderObjRow(){
+  const c=$('#objrow'); c.innerHTML='';
+  GAME.OBJECTIVES.forEach(o=>{ const b=document.createElement('button');
+    b.className='goalb'+(objOn(o.id)?' sel':'');
+    b.innerHTML=`<span class="gi">${o.icon}</span>${o.name}`;
+    b.onclick=()=>{ const i=S.objs.indexOf(o.id);
+      if(i>=0) S.objs.splice(i,1);
+      else { S.objs.push(o.id); if(S.objs.length>2) S.objs.shift(); }
+      renderObjRow();
+      if(S.mission&&S.objs.length) proceedToBuild(); };
+    c.appendChild(b); });
+}
+const DIFFS={easy:{n:'EASY',i:'🟢',bud:1.25,goal:.8,rate:.75,spd:.8,beam:5,sub:'+25% funds · target −20% · calm meteors'},
+ normal:{n:'NORMAL',i:'🟡',bud:1,goal:1,rate:1,spd:1,beam:0,sub:'The standard mission'},
+ hard:{n:'HARD',i:'🔴',bud:.85,goal:1.2,rate:1.35,spd:1.25,beam:-3,sub:'−15% funds · target +20% · meteor storm'}};
+function D(){ return DIFFS[S.diff]||DIFFS.normal; }
+function renderDiff(){ const c=$('#diffpick'); c.innerHTML='';
+  Object.keys(DIFFS).forEach(k=>{ const o=DIFFS[k], b=document.createElement('button');
+    b.className='goalb'+(S.diff===k?' sel':''); b.title=o.sub; b.innerHTML=`<span class="gi">${o.i}</span>${o.n}`;
+    b.onclick=()=>{ S.diff=k; if(S.mission) S.money=Math.round(S.mission.budget*o.bud); renderPick(); }; c.appendChild(b); });
+  const h=document.createElement('div'); h.className='hint'; h.style.cssText='width:100%;margin:2px 0 0'; h.textContent=D().sub; c.appendChild(h); }
+function renderPick(){ renderDiff(); renderCrewPick(); renderCrew(); renderRoles(); renderObjRow(); renderBoards();
+  $('#p-months').textContent=GAME.MONTHS;
+  const m=$('#missions'); m.innerHTML='';
+  GAME.MISSIONS.forEach(ms=>{ const d=document.createElement('div'); d.className='mcard';
+    d.innerHTML=`<div class="pick">✔</div><div class="sw ${ms.sw}${ms.ring?' ring':''}"></div>
+      <div class="mn">${ms.name}</div><div class="mb">${ms.blurb}</div>
+      <div class="diff">${'★'.repeat(ms.diff)}${'☆'.repeat(3-ms.diff)}</div>
+      <div class="mchips">
+        <span class="st"><b>BUDGET</b><span>$${Math.round(ms.budget*D().bud)}</span></span>
+        <span class="st"><b>TARGET</b><span>${Math.round(ms.goal*D().goal)}</span></span>
+        <span class="st"><b>MONTHS</b><span>${GAME.MONTHS}</span></span></div>`;
+    d.onclick=()=>{ S.mission=ms; S.money=Math.round(ms.budget*D().bud);
+      m.querySelectorAll('.mcard').forEach(x=>x.classList.remove('sel-m')); d.classList.add('sel-m');
+      setTimeout(()=>{ if(S.objs.length) proceedToBuild();
+        else toast('PICK A SCIENCE GOAL FIRST','y'); },220); };
+    m.appendChild(d); });
+}
+
+/* ================= 2 · BUILD ================= */
+function stHTML(l,v,cls=''){ return `<span class="st ${cls}"><b>${l}</b><span>${v}</span></span>`; }
+function renderBuildRes(){
+  const over=mass()>GAME.ROCKETS[2].cap;
+  $('#b-res').innerHTML =
+    stHTML('FUNDS','$'+S.money, S.money<10?'warn':'')+
+    stHTML('🚀 LAUNCH RESERVE','$'+launchReserve(mass()),'cy')+
+    stHTML('MASS',mass()+' kg', over?'bad':'')+
+    stHTML('PWR IN','+'+gen(),'good')+
+    stHTML('PWR USE',useP(), net()<0?'bad':'')+
+    stHTML('SCI / MO','~'+sciPerMo(),'vi')+
+    stHTML('DATA / MO','~'+dataPerMo(),'cy')+
+    (over?stHTML('⚠','OVER MASS LIMIT','bad'):'')+
+    (!inv('solar')?stHTML('⚠','NO SOLAR — NO POWER','bad'):'');
+}
+function renderShelf(){
+  const sh=$('#shelf'); sh.innerHTML='';
+  const own=GAME.PARTS.filter(p=>inv(p.id)>0);
+  if(own.length){ const st=document.createElement('div');
+    st.style.cssText='grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 9px;border:1px dashed #33507a;border-radius:10px';
+    st.innerHTML='<b style="font-size:10px;letter-spacing:1.5px;color:var(--dim);font-family:var(--mono)">INSTALLED · TAP ↩ TO UNDO + FULL REFUND</b>';
+    own.forEach(p=>{ const b=document.createElement('button'); b.className='btn ghost'; b.style.cssText='padding:4px 9px;font-size:12px;border-color:#ff6b6b66';
+      b.textContent=p.icon+' '+p.name+' ×'+inv(p.id)+'  ↩ +$'+p.cost; b.onclick=()=>removePart(p.id); st.appendChild(b); });
+    sh.appendChild(st); }
+  GAME.PARTS.forEach(p=>{ const matched=p.obj&&p.obj.some(o=>objOn(o));
+    const d=document.createElement('div'); d.className='pct'+(matched?' match':'')+(S.money-p.cost<launchReserve(mass()+p.mass)?' no':'');
+    d.innerHTML=`<div class="ph"><span class="pi">${p.icon}</span><span class="pn">${p.name}</span></div>
+      <div class="pgrid">
+        <div class="pg"><b>MASS</b><span>${p.mass} kg</span></div>
+        <div class="pg"><b>COST</b><span>$${p.cost}</span></div>
+        ${p.gen?`<div class="pg"><b>POWER</b><span class="g">+${p.gen}</span></div>`:''}
+        ${p.pow?`<div class="pg"><b>POWER</b><span>−${p.pow}</span></div>`:''}
+        ${p.sci?`<div class="pg"><b>SCIENCE</b><span class="v">+${p.sci}/mo</span></div>`:''}
+        ${p.data?`<div class="pg"><b>DATA</b><span class="g">+${p.data}/mo</span></div>`:''}
+        ${p.cap?`<div class="pg"><b>BUFFER</b><span class="g">+${p.cap}</span></div>`:''}
+      </div>
+      ${p.obj?`<div style="margin-top:7px;display:flex;gap:4px;justify-content:flex-end">${p.obj.map(o=>{const ob=GAME.OBJECTIVES.find(x=>x.id===o);return `<span style="font-size:12px;opacity:${objOn(o)?1:.3};filter:${objOn(o)?'none':'grayscale(1)'}">${ob.icon}</span>`;}).join('')}</div>`:''}`;
+    d.onclick=()=>addPart(p.id);
+    sh.appendChild(d); });
+}
+function renderFitChips(){
+  $('#b-foot').innerHTML = '<span class="st"><b>ROCKET FIT</b></span>'+
+    GAME.ROCKETS.map(r=>stHTML(r.name, r.cap+' kg', mass()<=r.cap?'good':'bad')).join('');
+}
+function launchReserve(m){ const r=GAME.ROCKETS.find(x=>x.cap>=m); return r?r.cost:GAME.ROCKETS[2].cost; }
+function addPart(id){
+  const p=GAME.PARTS.find(x=>x.id===id);
+  const nm=mass()+p.mass, rsv=launchReserve(nm);
+  if(S.money-p.cost<rsv || nm>GAME.ROCKETS[2].cap){
+    snd.bad(); const el=$('#b-res'); el.classList.add('shake');
+    toast(nm>GAME.ROCKETS[2].cap?'MASS LIMIT REACHED':S.money<p.cost?'NOT ENOUGH FUNDS':'KEEP $'+rsv+' FOR THE LAUNCH VEHICLE','r');
+    setTimeout(()=>el.classList.remove('shake'),500); return; }
+  S.money-=p.cost; S.installed[id]=(S.installed[id]||0)+1;
+  snd.good(); renderBuildAll(); PCV.flash=.25;
+}
+function removePart(id){
+  const p=GAME.PARTS.find(x=>x.id===id);
+  S.money+=p.cost; S.installed[id]=inv(id)-1; if(S.installed[id]<=0) delete S.installed[id];
+  snd.click(); renderBuildAll();
+}
+function renderBuildAll(){ renderBuildRes(); renderShelf(); renderFitChips(); }
+
+/* ---------- build preview canvas ---------- */
+const PCV={ c:null,g:null,flash:0,t:0 };
+(function(){
+  PCV.c=$('#pcv'); PCV.g=PCV.c.getContext('2d');
+  function loop(){ requestAnimationFrame(loop);
+    if(!$('#s-build').classList.contains('on')) return;
+    PCV.t+=1/60; const g=PCV.g,W=460,H=320; PCV.flash=Math.max(0,PCV.flash-1/60);
+    g.clearRect(0,0,W,H);
+    drawPlanet(g,352,258,86,SWCOL[S.mission?S.mission.id:'cube']||SWCOL.cube,PCV.t,{clouds:S.mission&&S.mission.id!=='jup',bands:S.mission&&S.mission.id==='jup',ring:S.mission&&S.mission.ring});
+    // orbit path
+    g.strokeStyle='#33c6f030'; g.setLineDash([4,7]); g.lineWidth=1.4;
+    g.beginPath(); g.ellipse(190,140,190,120,0,0,6.283); g.stroke(); g.setLineDash([]);
+    const bob=Math.sin(PCV.t*1.6)*7;
+    drawCraft(g,190,140+bob,1.25,{panes:inv('solar'),dish:has('dish'),t:PCV.t,
+      deadS:!S.sys.solar,deadI:!S.sys.inst,deadA:!S.sys.ant});
+    if(PCV.flash>0){ g.fillStyle=`rgba(127,216,255,${PCV.flash*.5})`; g.fillRect(0,0,W,H); }
+  }
+  loop();
+})();
+
+/* ================= 3 · ROCKET ================= */
+function renderRocketRes(){
+  $('#r-res').innerHTML =
+    stHTML('FUNDS','$'+S.money, S.money<15?'warn':'')+
+    stHTML('MASS',mass()+' kg')+
+    stHTML('SCI / MO','~'+sciPerMo(),'vi')+
+    stHTML('DATA / MO','~'+dataPerMo(),'cy')+
+    stHTML('POWER NET',(net()>=0?'+':'')+net(), net()<0?'bad':'good');
+}
+function renderRocket(){
+  renderRocketRes();
+  const rk=$('#rockets'); rk.innerHTML='';
+  GAME.ROCKETS.forEach(r=>{ const ok=mass()<=r.cap && S.money>=r.cost+(S.ground?S.ground.cost:0);
+    const pct=clamp(Math.round(mass()/r.cap*100),0,100);
+    const col=mass()>r.cap?'#ff6b6b':pct>80?'#ffc94d':'#3ddc97';
+    const d=document.createElement('div'); d.className='rc'+(ok?'':' no')+(S.rocket&&S.rocket.id===r.id?' sel':'');
+    d.innerHTML=`<div class="rn">${r.name}</div>
+      <div class="row" style="gap:6px">${stHTML('LIFT',r.cap+' kg', mass()>r.cap?'bad':'')}${stHTML('COST','$'+r.cost,'warn')}</div>
+      <div class="capbar"><i style="width:${pct}%;background:${col}"></i></div>
+      <div style="font-size:9.5px;color:var(--dim);letter-spacing:1px;font-family:var(--mono)">${mass()} / ${r.cap} KG FILLED</div>`;
+    d.onclick=()=>{ if(!ok){ snd.bad(); toast(mass()>r.cap?'TOO HEAVY FOR THIS ROCKET':'NOT ENOUGH FUNDS','r'); return; }
+      S.rocket=r; snd.click(); renderRocket(); };
+    rk.appendChild(d); });
+  const ob=$('#orbits'); ob.innerHTML='';
+  GAME.ORBITS.forEach(o=>{ const d=document.createElement('div'); d.className='oc'+(S.orbit&&S.orbit.id===o.id?' sel':'');
+    d.innerHTML=`<div class="orbit-ic"><b></b><i></i></div><div class="on2">${o.name}</div><div class="osub">${o.sub}</div>`;
+    d.onclick=()=>{ S.orbit=o; snd.click(); renderRocket(); };
+    ob.appendChild(d); });
+  const gd=$('#grounds'); gd.innerHTML='';
+  GAME.GROUNDS.forEach(g=>{ const ok=S.money-(S.rocket?S.rocket.cost:0)>=g.cost;
+    const d=document.createElement('div'); d.className='oc'+(S.ground&&S.ground.id===g.id?' sel':'')+(ok?'':' no');
+    d.innerHTML=`<div style="font-size:24px;margin-bottom:4px">📡</div><div class="on2">${g.name}</div>
+      <div class="osub">Beams home ×${g.dl} · buffer +${g.cap}<br>${g.cost?'$'+g.cost:'free'}</div>`;
+    d.onclick=()=>{ if(!ok){ snd.bad(); toast('NOT ENOUGH FUNDS','r'); return; }
+      S.ground=g; snd.click(); renderRocket(); };
+    gd.appendChild(d); });
+  $('#do-launch').disabled=!(S.rocket&&S.orbit);
+}
+
+/* ================= SIM · HUD ================= */
+function renderHUD(){
+  $('#h-money').textContent='$'+S.money;
+  const n=net(), hp=$('#h-pow');
+  hp.textContent=(n>=0?'+':'')+n; hp.className='val '+(n<0?'bad':'good');
+  $('#h-sci').textContent=S.sci;
+  const cap=bufCap();
+  $('#h-buf').textContent=S.buf+'/'+cap;
+  const f=$('#h-buff'); f.style.width=clamp(S.buf/cap*100,0,100)+'%';
+  f.className=S.buf>=cap?'max':S.buf>=cap*.7?'hot':'';
+  $('#h-mon').textContent=(S.month+1)+'/'+GAME.MONTHS;
+  const dt=$('#h-dots'); dt.innerHTML='';
+  for(let i=0;i<GAME.MONTHS;i++){ const d=document.createElement('i'); d.className=i<S.month?'done':i===S.month?'cur':''; dt.appendChild(d); }
+  const hs=$('#h-sys'); hs.innerHTML='';
+  [['solar','🔆'],['inst','🔬'],['ant','📶']].forEach(([k,ic])=>{
+    const s=document.createElement('i'); s.className='sysd'+(S.sys[k]?'':' bad'); s.title=ic; hs.appendChild(s); });
+  const tu=$('#h-turn'); tu.textContent=CALL[S.turn]; tu.style.color=AVCOLORS[S.turn];
+}
+
+/* ---------- launch ---------- */
+let launchIv=null;
+function doLaunch(){
+  S.money-=S.rocket.cost+(S.ground?S.ground.cost:0);
+  const ov=$('#ov'), cnt=$('#cnt'), rk=$('#lrocket'), stk=$('#streaks');
+  ov.classList.add('on'); rk.classList.remove('go'); stk.innerHTML=''; cnt.style.display='flex';
+  let n=3; cnt.textContent=n; snd.tick();
+  launchIv=setInterval(()=>{ n--;
+    if(n>0){ cnt.textContent=n; cnt.style.animation='none'; void cnt.offsetWidth; cnt.style.animation='pop .5s'; snd.tick(); }
+    else { clearInterval(launchIv); launchIv=null; cnt.style.display='none';
+      rk.classList.add('go'); snd.launch();
+      for(let i=0;i<10;i++){ const s=document.createElement('i'); s.className='stk';
+        s.style.left=(5+rnd()*90)+'%'; s.style.animationDelay=(rnd()*.4)+'s'; stk.appendChild(s); }
+      document.body.classList.add('shakeX'); setTimeout(()=>document.body.classList.remove('shakeX'),600);
+      setTimeout(()=>{ ov.classList.remove('on'); rk.classList.remove('go'); stk.innerHTML='';
+        show('s-sim'); S.month=0; showPhase(); },1050); }
+  },620);
+}
+const skipLaunch=()=>{ if(launchIv){ clearInterval(launchIv); launchIv=null; }
+  $('#ov').classList.remove('on'); $('#lrocket').classList.remove('go');
+  $('#streaks').innerHTML=''; document.body.classList.remove('shakeX');
+  show('s-sim'); S.month=0; showPhase(); };
+
+/* ================= 4 · SIM · MINIGAME ENGINE ================= */
+const MGC=$('#mg'), MGX=MGC.getContext('2d');
+const MW=720, MH=430;
+let MG=null;
+const MGP={x:MW/2,y:MH/2,down:false,inside:false};
+const keys=new Set();
+const MONO='"Consolas","Cascadia Code",monospace';
+
+addEventListener('keydown',e=>{ const k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+  keys.add(k); });
+addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
+function ptr(e){ const r=MGC.getBoundingClientRect();
+  return {x:(e.clientX-r.left)*MW/r.width, y:(e.clientY-r.top)*MH/r.height}; }
+MGC.addEventListener('pointermove',e=>{ const p=ptr(e); MGP.x=p.x; MGP.y=p.y; MGP.inside=true;
+  if(MG&&MG.def.onMove) MG.def.onMove(p); });
+MGC.addEventListener('pointerleave',()=>MGP.inside=false);
+MGC.addEventListener('pointerdown',e=>{ e.preventDefault(); const p=ptr(e); MGP.x=p.x; MGP.y=p.y; MGP.down=true; MGP.inside=true;
+  if(MG&&MG.def.onDown) MG.def.onDown(p); });
+addEventListener('pointerup',()=>MGP.down=false);
+MGC.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ---------- fx helpers ---------- */
+function burst(arr,x,y,c,n=9){ for(let i=0;i<n;i++){ const a=rnd()*6.283,s=60+rnd()*130;
+  arr.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,ttl:.5+rnd()*.3,tm:.8,c,r:1.5+rnd()*2.2}); } }
+function stepParts(arr,dt){ for(let i=arr.length-1;i>=0;i--){ const p=arr[i];
+  p.ttl-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=140*dt; if(p.ttl<=0) arr.splice(i,1); } }
+function drawParts(g,arr){ arr.forEach(p=>{ g.globalAlpha=clamp(p.ttl/p.tm,0,1);
+  g.fillStyle=p.c; g.beginPath(); g.arc(p.x,p.y,p.r,0,6.283); g.fill(); }); g.globalAlpha=1; }
+function ctext(g,txt,x,y,c,size=13,align='left',w=700){ g.font=w+' '+size+'px '+MONO; g.fillStyle=c; g.textAlign=align; g.fillText(txt,x,y); }
+function timeBar(g,tl,tot){ const w=190,x=MW-w-18,y=16,f=clamp(tl/tot,0,1);
+  const c=f>.6?'#3ddc97':f>.3?'#ffc94d':'#ff6b6b';
+  g.fillStyle='#081120cc'; rr(g,x-9,y-8,w+18,26,13); g.fill();
+  g.strokeStyle='#22385a'; g.lineWidth=1; g.stroke();
+  g.fillStyle='#14233b'; rr(g,x,y,w,10,5); g.fill();
+  if(f>0.01){ g.save(); g.shadowColor=c; g.shadowBlur=8; g.fillStyle=c; rr(g,x,y,Math.max(8,w*f),10,5); g.fill(); g.restore(); }
+  ctext(g,Math.ceil(tl)+'s',x-16,y+10,c,13,'right'); }
+function drawOrb(g,o){ const c=o.v===3?'#ffd166':o.v===2?'#c9b4ff':'#7fd8ff';
+  const gl=g.createRadialGradient(o.x,o.y,1,o.x,o.y,o.r*3);
+  gl.addColorStop(0,c+'aa'); gl.addColorStop(1,c+'00');
+  g.fillStyle=gl; g.beginPath(); g.arc(o.x,o.y,o.r*3,0,6.283); g.fill();
+  g.save(); g.translate(o.x,o.y); g.rotate(Math.PI/4);
+  g.fillStyle=c; g.globalAlpha=.45; const s2=o.r*.85; g.fillRect(-s2,-s2,2*s2,2*s2);
+  g.globalAlpha=1; g.fillStyle='#ffffff'; const s=o.r*.5; g.fillRect(-s,-s,2*s,2*s);
+  g.restore();
+  if(o.v>1) ctext(g,'+'+o.v,o.x,o.y-o.r*2.1,c,10,'center'); }
+function bayGlow(g,x){ const gl=g.createLinearGradient(0,MH-150,0,MH-60);
+  gl.addColorStop(0,'#7fd8ff00'); gl.addColorStop(1,'#7fd8ff2e');
+  g.fillStyle=gl; g.beginPath();
+  g.moveTo(x-56,MH-64); g.lineTo(x-40,MH-140); g.lineTo(x+40,MH-140); g.lineTo(x+56,MH-64); g.closePath(); g.fill(); }
+function craftOpts(t){ return {panes:Math.min(2,inv('solar')),dish:has('dish'),t,
+  deadS:!S.sys.solar,deadI:!S.sys.inst,deadA:!S.sys.ant}; }
+const SYSNAME={solar:'SOLAR ARRAY',inst:'INSTRUMENTS',ant:'BIG DISH'};
+function stRes(l,v,cls=''){ return `<span class="st ${cls}"><b>${l}</b><span>${v}</span></span>`; }
+function endOfMonth(chips){
+  S.money+=GAME.GRANT; chips.push(stRes('FUNDING','+$'+GAME.GRANT,'good'));
+  if(net()<0){ S.powerNeg=(S.powerNeg||0)+1; S.log.push({m:S.month+1,t:'power'}); }
+  if(dataPerMo()>0&&alive()){ addData(dataPerMo());
+    chips.push(stRes('DATA','+'+dataPerMo()+(overflowed>0?' ('+overflowed+' LOST)':''),'cy')); }
+}
+
+/* ---------- phases ---------- */
+const PHC={collect:'#33c6f0',send:'#9d7bff',balance:'#ffc94d',save:'#ff6b6b',repair:'#ff9a3d'};
+const BTNCLS={collect:'',send:'vio',balance:'gold',save:'danger'};
+const PHINFO={
+ collect:{name:'COLLECT DATA',tag:'PHASE · SCIENCE HARVEST',icon:'✦',dur:10,
+   sub:'Fly the spacecraft with ← → (or drag to move). Catch falling science particles in your open bay — the bay magnet grabs close ones, and gold particles are worth 3.',
+   ctl:['← → / DRAG','10 SEC']},
+ send:{name:'SEND DATA HOME',tag:'PHASE · DEEP-SPACE DOWNLINK',icon:'📡',dur:14,
+   sub:'Aim with the mouse and fire data packets into the moving dish on Earth. When the green LOCK ring appears, your shot will connect. Every hit beams science home.',
+   ctl:['AIM + CLICK / SPACE','8 SHOTS · LOCK-ON']},
+ balance:{name:'BALANCE POWER',tag:'PHASE · ARRAY TRIM',icon:'⚖️',dur:10,
+   sub:'The two power plates drift out of sync. Hold ← → to counter the drift and keep the beam inside the wide green zone.',
+   ctl:['HOLD ← → (OR SCREEN SIDES)','10 SEC']},
+ save:{name:'SAVE THE CRAFT',tag:'PHASE · METEOR DEFENSE',icon:'☄️',dur:12,
+   sub:'Meteors incoming! The point-defense laser fires nonstop — just aim it at the rocks and sweep them away. A glancing hit only scorches the hull — stay sharp out there.',
+   ctl:['AIM WITH MOUSE / DRAG','AUTO-FIRE · 12 SEC']},
+ repair:{name:'DAMAGE REPORT',tag:'PHASE · REPAIR BAY',icon:'🔧',
+   sub:'Systems are offline. Pay to fix them now, or fly degraded and lose that output until you repair later.'},
+};
+const BASE={calib:'collect',decode:'send',fuse:'balance'};
+const TASKN={collect:'Collect data',calib:'Spectrum ID',send:'Send data',decode:'Signal decode',balance:'Balance power',fuse:'Power routing',save:'Meteor laser',repair:'Repairs'};
+Object.assign(PHC,{calib:'#33c6f0',decode:'#9d7bff',fuse:'#ffc94d'});
+Object.assign(PHINFO,{
+ calib:{name:'SPECTRUM ID',tag:'PHASE · SAMPLE ANALYSIS LAB',icon:'🔬',sub:'The spectrometer captured a sample! Compare its bright emission lines with the reference library and pick the matching element. 3 samples — right answers, made fast, give more science.',ctl:['TAP THE MATCH','3 SAMPLES · 12 SEC EACH']},
+ decode:{name:'SIGNAL DECODE',tag:'PHASE · COMMS LINK',icon:'📶',sub:'Watch the colour pattern from Earth, then repeat it. Longer patterns each round — every clean decode uploads more of your data buffer.',ctl:['MEMORISE + REPEAT','3 ROUNDS']},
+ fuse:{name:'POWER ROUTING',tag:'PHASE · GRID ROUTING',icon:'🔀',sub:'The solar feed is scrambled! Tap conduit tiles to rotate them and connect ☀️ to the 🔋 battery. Two buses, 14 seconds each — faster means more power.',ctl:['TAP TO ROTATE','2 PUZZLES · 14 SEC']}});
+function alt(p){ const r=rnd(); if(p==='collect'&&S.month>0&&r<.4) return 'calib'; if(p==='send'&&r<.4) return 'decode'; if(p==='balance'&&r<.5) return 'fuse'; return p; }
+function dbox(h){ const pc=$('#phasecard'); pc.innerHTML='<div class="pbox">'+h+'</div>'; pc.classList.add('on'); return pc; }
+function domDone(perf,head,chips){ $('#phasecard').classList.remove('on'); endOfMonth(chips); showResult({perf,headline:head,chips}); }
+const DOMG={
+ calib(){ const T=12, N=3; let rd=0,iv=null,left=T,lock=false,pc=null,ok=0; const pts=[];
+  const LIB=[
+   {n:'HYDROGEN',l:[.10,.27,.55,.83]},{n:'HELIUM',l:[.10,.36,.52,.68]},{n:'SODIUM',l:[.22,.47,.60,.90]},
+   {n:'NEON',l:[.15,.30,.62,.77]},{n:'IRON',l:[.08,.33,.58,.86]},{n:'CARBON',l:[.18,.40,.65,.92]}];
+  const hue=x=>Math.round(285-x*285);
+  const spec=(l,w,h,noisy)=>{ let o=`<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="display:block;background:#050a14;border-radius:6px"><defs><linearGradient id="sg${w}" x1="0" x2="1"><stop offset="0" stop-color="#8a2be2" stop-opacity=".18"/><stop offset=".5" stop-color="#2ecc71" stop-opacity=".18"/><stop offset="1" stop-color="#ff3b3b" stop-opacity=".18"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#sg${w})"/>`;
+    if(noisy) for(let i=0;i<9;i++){ const x=rnd()*w; o+=`<rect x="${x.toFixed(1)}" y="${h*.78}" width="1.5" height="${h*.22}" fill="#8fa6c9" opacity=".25"/>`; }
+    l.forEach(x=>{ const px=(x+(noisy?(rnd()-.5)*.012:0))*w; o+=`<rect x="${(px-1.5).toFixed(1)}" y="2" width="3" height="${h-4}" rx="1.5" fill="hsl(${hue(x)},95%,62%)"/>`; });
+    return o+'</svg>'; };
+  const fin=()=>{ const perf=pts.reduce((x,y)=>x+y,0)/N; let sc=alive()?Math.round(sciPerMo()*(.5+perf)):Math.round(perf*3); S.sci+=sc;
+    domDone(perf,ok+'/'+N+' SAMPLES IDENTIFIED',[stRes('ID ACCURACY',ok+'/'+N,ok>=2?'good':'bad'),stRes('SCIENCE','+'+sc,'good')]); };
+  const answer=(pick,ans,btns)=>{ if(lock) return; lock=true; clearInterval(iv);
+    const good=pick===ans; if(good){ ok++; pts.push(.55+.45*Math.max(0,left)/T); snd.good(); } else { pts.push(0); snd.bad(); }
+    btns.forEach(b=>{ const k=+b.dataset.k; if(k===ans) b.style.borderColor='#3ddc97'; else if(k===pick) b.style.borderColor='#ff6b6b'; });
+    const t=pc.querySelector('#ct'); if(t) t.textContent=good?'MATCH CONFIRMED':(pick<0?'TIME UP':'WRONG — IT WAS '+LIB[ans].n);
+    rd++; setTimeout(()=>{ if(rd<N) start(); else fin(); },900); };
+  const start=()=>{ lock=false; left=T;
+    const ans=rnd()*LIB.length|0; const opts=[ans]; while(opts.length<4){ const k=rnd()*LIB.length|0; if(!opts.includes(k)) opts.push(k); }
+    for(let i=opts.length-1;i>0;i--){ const j=rnd()*(i+1)|0; [opts[i],opts[j]]=[opts[j],opts[i]]; }
+    pc=dbox(`<div class="ptag" style="color:#33c6f0">SPECTRUM LAB · SAMPLE ${rd+1}/${N}</div><div class="pname" style="color:#33c6f0">WHICH ELEMENT IS THIS?</div>
+     <div style="width:300px;margin:8px auto 2px">${spec(LIB[ans].l,300,56,true)}</div><div class="psub" id="ct" style="margin:4px auto 8px"></div>
+     <div style="display:grid;grid-template-columns:repeat(2,150px);gap:8px;justify-content:center">${opts.map(k=>`<button data-k="${k}" style="background:#0b1424;border:1.5px solid #22385a;border-radius:10px;padding:6px;color:#cfe3ff;font-family:var(--mono);font-size:11px;cursor:pointer"><span style="display:block;margin-bottom:4px;pointer-events:none">${spec(LIB[k].l,136,24,false)}</span>${LIB[k].n}</button>`).join('')}</div>`);
+    const btns=[...pc.querySelectorAll('[data-k]')]; btns.forEach(b=>b.onclick=()=>answer(+b.dataset.k,ans,btns));
+    const upd=()=>{ const t=pc.querySelector('#ct'); if(t&&!lock) t.textContent='MATCH THE LINES · '+Math.max(0,Math.ceil(left))+'s'; }; upd();
+    iv=setInterval(()=>{ left-=.1; upd(); if(left<=0) answer(-1,ans,btns); },100); };
+  start(); },
+ decode(){ const ic=['🔴','🟡','🟢','🔵']; let rd=0,seq=[],pos=0,ok=0,lock=true,pc;
+  const fin=()=>{ const perf=ok/3, sent=S.sys.ant?Math.round(S.buf*perf):0, sc=Math.round(sent*groundDl()*.8); S.buf=Math.max(0,S.buf-sent); S.sci+=sc;
+    domDone(perf,ok+'/3 PATTERNS DECODED',[stRes('UPLOADED',sent+' data','good'),stRes('SCIENCE','+'+sc,'good')]); };
+  const round=()=>{ seq=Array.from({length:rd+3},()=>rnd()*4|0); pos=0; lock=true;
+    pc=dbox(`<div class="ptag" style="color:#9d7bff">SIGNAL DECODE · ROUND ${rd+1}/3</div><div class="pname" id="dm" style="color:#9d7bff">WATCH THE PATTERN</div><div class="pbtns">${ic.map((c,k)=>`<button class="btn ghost" data-k="${k}" style="font-size:26px;padding:10px 18px">${c}</button>`).join('')}</div>`);
+    const bs=[...pc.querySelectorAll('[data-k]')], fl=b=>{ b.style.transform='scale(1.25)'; b.style.borderColor='#fff'; setTimeout(()=>{ b.style.transform=''; b.style.borderColor=''; },260); };
+    bs.forEach(b=>b.onclick=()=>{ if(lock) return; const k=+b.dataset.k; fl(b);
+      if(k!==seq[pos]){ snd.bad(); lock=true; return setTimeout(fin,500); }
+      snd.click(); if(++pos===seq.length){ ok++; rd++; lock=true; setTimeout(rd>=3?fin:round,700); } });
+    seq.forEach((k,i)=>setTimeout(()=>{ fl(bs[k]); snd.click(); },900+i*600));
+    setTimeout(()=>{ lock=false; const m=pc.querySelector('#dm'); if(m) m.textContent='YOUR TURN'; },900+seq.length*600); };
+  round(); },
+ fuse(){ const R=3,C=4,T=14; let rd=0,iv=null,left=T,sr=0,er=0,g={}; const pts=[];
+  const conn=t=>t.t==='s'?(t.rot%2?[0,2]:[1,3]):[t.rot,(t.rot+1)%4];
+  const walk=()=>{ const lit=new Set(); let r=sr,c=0,en=3,ok=false;
+    for(let n=0;n<20;n++){ const t=g[r*C+c]; if(!t) break; const cn=conn(t); if(!cn.includes(en)) break; lit.add(r*C+c);
+      const ex=cn.find(x=>x!==en); if(ex===1&&c===C-1&&r===er){ ok=true; break; }
+      r+=[-1,0,1,0][ex]; c+=[0,1,0,-1][ex]; if(r<0||r>=R||c<0||c>=C) break; en=(ex+2)%4; }
+    return {ok,lit}; };
+  const build=()=>{ do{ g={}; let r=rnd()*R|0; sr=r; const path=[];
+      for(let c=0;c<C;c++){ path.push([r,c]); if(rnd()<.6){ const tr=rnd()*R|0; while(r!==tr){ r+=tr>r?1:-1; path.push([r,c]); } } }
+      er=r; const dir=(a,b)=>b[1]>a[1]?1:b[0]>a[0]?2:0;
+      path.forEach((cell,i)=>{ const a=i?(dir(path[i-1],cell)+2)%4:3, b=i<path.length-1?dir(cell,path[i+1]):1;
+        g[cell[0]*C+cell[1]]={t:(a+2)%4===b?'s':'e',rot:rnd()*4|0}; });
+    }while(walk().ok); };
+  const svg=(t,on)=>`<svg viewBox="0 0 40 40" width="46" height="46" style="pointer-events:none">${conn(t).map(d=>{ const e=[[20,0],[40,20],[20,40],[0,20]][d]; return `<line x1="20" y1="20" x2="${e[0]}" y2="${e[1]}" stroke="${on?'#ffc94d':'#5d7396'}" stroke-width="7" stroke-linecap="round"/>`; }).join('')}<circle cx="20" cy="20" r="5" fill="${on?'#fff3d6':'#8fa6c9'}"/></svg>`;
+  const draw=()=>{ const w=walk(); let h='';
+    for(let r=0;r<R;r++) for(let c=-1;c<=C;c++){
+      if(c<0) h+=`<div style="font-size:22px;align-self:center">${r===sr?'\u2600\ufe0f':''}</div>`;
+      else if(c===C) h+=`<div style="font-size:22px;align-self:center">${r===er?(w.ok?'\ud83d\udd0b':'\ud83e\udeab'):''}</div>`;
+      else { const t=g[r*C+c]; h+=t?`<button data-i="${r*C+c}" style="background:#0b1424;border:1.5px solid ${w.lit.has(r*C+c)?'#ffc94d':'#22385a'};border-radius:9px;width:54px;height:54px;padding:3px">${svg(t,w.lit.has(r*C+c))}</button>`:'<div style="width:54px;height:54px;border:1px dashed #1a2c48;border-radius:9px"></div>'; } }
+    const pc=dbox(`<div class="ptag" style="color:#ffc94d">POWER ROUTING \u00b7 BUS ${rd+1}/2</div><div class="pname" style="color:#ffc94d">ROTATE THE CONDUITS \u2600\ufe0f \u2192 \ud83d\udd0b</div><div class="psub" id="pt">${left.toFixed(1)}s left</div><div style="display:grid;grid-template-columns:32px repeat(${C},54px) 32px;gap:6px;justify-content:center;margin:8px 0">${h}</div>`);
+    pc.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{ const t=g[b.dataset.i]; t.rot=(t.rot+1)%4; snd.click(); if(walk().ok){ draw(); snd.good(); finish(true); } else draw(); }); };
+  const finish=ok=>{ clearInterval(iv); pts.push(ok?.55+.45*left/T:0); rd++; setTimeout(()=>{ if(rd<2) start(); else fin(); },ok?900:300); };
+  const fin=()=>{ const perf=(pts[0]+pts[1])/2; let sc=alive()?Math.round(sciPerMo()*(.5+perf)):0; const chips=[stRes('BUSES ONLINE',pts.filter(x=>x>0).length+'/2',perf>.5?'good':'bad')];
+    if(perf<.3){ sc=Math.round(sc*.4); chips.push(stRes('\u26a1 BROWNOUT','grid unstable','bad')); }
+    if(sc>0) chips.push(stRes('SCIENCE','+'+sc,'good')); S.sci+=sc; domDone(perf,Math.round(perf*100)+'% GRID UPTIME',chips); };
+  const start=()=>{ left=T; build(); draw(); iv=setInterval(()=>{ left-=.1; const e=$('#pt'); if(e) e.textContent=Math.max(0,left).toFixed(1)+'s left'; if(left<=0) finish(false); },100); };
+  start(); }
+};
+function pickPhase(){
+  if(['solar','inst','ant'].some(k=>!S.sys[k])) return 'repair';
+  if(S.buf>=bufCap()*.55&&S.sys.ant) return 'send';
+  if(GAME.SAVE_MONTHS.includes(S.month)) return 'save';
+  if(S.month>0){
+    const strain=gen()>0&&net()<gen()*.35;
+    if(rnd()<(strain?.55:.22)) return 'balance';
+  }
+  return 'collect';
+}
+function playerChipHTML(){ if(S.crew<2) return '';
+  const R=roleOf(S.phase);
+  return `<div class="pplayer" style="background:${AVCOLORS[S.turn]}">▶ PASS TO ${pname(S.turn)} · ${R.n}</div>`; }
+function showPhase(){
+  renderHUD(); S.resolved=false; $('#resultcard').classList.remove('on');
+  S.phase=alt(pickPhase()); S.turn=owner(S.phase); renderHUD(); renderTL();
+  const inf=PHINFO[S.phase], pc=$('#phasecard');
+  let sub=inf.sub;
+  if(S.phase==='collect'&&S.month===0)
+    sub='Arrival calibration run! Fly with ← → and catch particles — this month scores ×1.5.';
+  let inner=`<div class="pbox">
+    <div class="ptag" style="color:${PHC[S.phase]}">${inf.tag} · MONTH ${S.month+1} / ${GAME.MONTHS}</div>
+    <div class="pico">${inf.icon}</div>
+    <div class="pname" style="color:${PHC[S.phase]}">${inf.name}</div>
+    <div class="psub">${sub}</div>
+    ${inf.ctl?`<div class="ctl">${inf.ctl.map(c=>`<span class="st"><span>${c}</span></span>`).join('')}</div>`:''}
+    ${playerChipHTML()}`;
+  if(S.phase==='repair'){
+    const broken=['solar','inst','ant'].filter(k=>!S.sys[k]);
+    inner+=`<div class="pbtns">`+broken.map(k=>
+      `<button class="btn ghost" data-fix="${k}" ${S.money<GAME.FIX_COST[k]?'disabled':''}>FIX ${SYSNAME[k]} — $${GAME.FIX_COST[k]}</button>`).join('')+
+      `<button class="btn" data-skip>FLY DEGRADED ➜</button></div>`;
+  } else {
+    inner+=`<div class="pbtns"><button class="btn ${BTNCLS[S.phase]}" id="go-start">START ➜</button></div>`;
+  }
+  pc.innerHTML=inner+'</div>'; pc.classList.add('on');
+  if(S.phase==='repair'){
+    pc.querySelectorAll('[data-fix]').forEach(b=>b.onclick=()=>{ if(S.resolved) return; S.resolved=true;
+      const k=b.dataset.fix; S.money-=GAME.FIX_COST[k]; S.sys[k]=1; snd.good();
+      const chips=[stRes('FIXED',SYSNAME[k],'good'),stRes('FUNDS','−$'+GAME.FIX_COST[k],'warn')];
+      endOfMonth(chips); showResult({headline:SYSNAME[k]+' REPAIRED',perf:.8,chips}); });
+    pc.querySelector('[data-skip]').onclick=()=>{ if(S.resolved) return; S.resolved=true; snd.bad();
+      const chips=[stRes('⚠','systems stay broken','bad')];
+      endOfMonth(chips); showResult({headline:'FLYING DEGRADED',perf:.2,chips}); };
+  } else pc.querySelector('#go-start').onclick=()=>DOMG[S.phase]?DOMG[S.phase]():startPhase();
+}
+function startPhase(){
+  const def=GAMES[S.phase]; $('#phasecard').classList.remove('on');
+  $('#mghint').textContent=(inf2hint(S.phase)||'');
+  MG={def,t:0,dur:def.dur*(FAST?.15:1),last:performance.now(),d:def.init()};
+  renderAssist(); requestAnimationFrame(mgLoop);
+}
+function inf2hint(p){ return {collect:'← → or drag to move · catch the particles',
+  send:'aim with mouse · green LOCK = sure hit · click / SPACE to fire',
+  balance:'hold ← → (or left/right screen edge) to trim',
+  save:'laser fires nonstop · point it at the meteors'}[p]; }
+function mgLoop(now){
+  if(!MG) return;
+  const dt=Math.min(.05,(now-MG.last)/1000); MG.last=now; MG.t+=dt;
+  MG.def.update(dt,MG.d);
+  MGX.clearRect(0,0,MW,MH);
+  MG.def.draw(MGX,MG.d);
+  if(MG.t>=MG.dur){ endPhase(); return; }
+  requestAnimationFrame(mgLoop);
+}
+function endPhase(){
+  $('#assist').innerHTML='';
+  const res=MG.def.end(MG.d); MG=null; $('#mghint').textContent='';
+  showResult(res);
+}
+function showResult(res){
+  const st=S.stats[S.turn]; st.s+=res.perf; st.n++; if(res.perf>=.75) st.g++;
+  $('#phasecard').classList.remove('on');
+  const col=res.perf>=.75?'#3ddc97':res.perf>=.4?'#ffc94d':'#ff6b6b';
+  const rc=$('#resultcard');
+  rc.innerHTML=`<div class="pbox">
+    <div class="rline" style="color:${col}">${res.headline}</div>
+    <div class="row">${res.chips.join('')}</div>
+    <div class="pbtns"><button class="btn" id="go-next">${S.month+1>=GAME.MONTHS?'SEE RESULTS 🏁':'NEXT MONTH ➜'}</button></div>
+  </div>`;
+  rc.classList.add('on');
+  if(res.perf>=.75) snd.good(); else if(res.perf<.4) snd.bad();
+  rc.querySelector('#go-next').onclick=()=>{ rc.classList.remove('on'); nextMonth(); };
+}
+function nextMonth(){
+  S.hist.push(S.turn); S.month++;
+  if([3,6,9].includes(S.month)){ crisis(); return; }
+  if(S.month>=GAME.MONTHS){ endGame(); return; }
+  showPhase();
+}
+
+/* ---------- idle scene behind banner ---------- */
+(function(){
+  const stars=Array.from({length:46},()=>({x:rnd()*MW,y:rnd()*MH,r:rnd()*1.3+.3,ph:rnd()*6.28}));
+  let t=0;
+  (function loop(){ requestAnimationFrame(loop);
+    if(!$('#s-sim').classList.contains('on')||MG) return;
+    t+=1/60; const g=MGX; g.clearRect(0,0,MW,MH);
+    stars.forEach(s=>{ g.globalAlpha=.25+.3*Math.abs(Math.sin(t*1.4+s.ph));
+      g.fillStyle='#cfe0ff'; g.beginPath(); g.arc(s.x,s.y,s.r,0,6.283); g.fill(); });
+    g.globalAlpha=1;
+    const pal=SWCOL[S.mission?S.mission.id:'cube'];
+    drawPlanet(g,MW/2,MH*.66,118,pal,t,{clouds:S.mission&&S.mission.id!=='jup',bands:S.mission&&S.mission.id==='jup',ring:S.mission&&S.mission.ring});
+    g.strokeStyle='#33c6f036'; g.setLineDash([5,8]); g.lineWidth=1.5;
+    g.save(); g.translate(MW/2,MH*.42); g.rotate(t*.35);
+    g.beginPath(); g.ellipse(0,0,205,78,0,0,6.283); g.stroke();
+    g.fillStyle='#ffc94d'; g.shadowColor='#ffc94d'; g.shadowBlur=8;
+    g.beginPath(); g.arc(205,0,4.5,0,6.283); g.fill(); g.restore();
+    g.setLineDash([]); g.shadowBlur=0;
+    const oa=t*.55, ox=MW/2+Math.cos(oa)*205, oy=MH*.42+Math.sin(oa)*78;
+    drawCraft(g,ox,oy,.8,{...craftOpts(t),flame:0});
+  })();
+})();
+
+/* ---------- THE FOUR GAMES ---------- */
+const GAMES={};
+
+/* COLLECT — fly the craft, catch science particles in the bay */
+GAMES.collect={
+  dur:10,
+  init:()=>({px:MW/2,vx:0,orbs:[],pts:0,spawn:.35,parts:[]}),
+  update(dt,d){
+    const L=keys.has('ArrowLeft')||keys.has('a'), R=keys.has('ArrowRight')||keys.has('d');
+    let ax=(R?1:0)-(L?1:0);
+    if(MGP.down){ d.px=clamp(d.px+(MGP.x-d.px)*Math.min(1,12*dt),74,MW-74); }
+    else { d.vx+=ax*1900*dt; d.vx*=Math.pow(.004,dt); d.px=clamp(d.px+d.vx*dt,74,MW-74); }
+    const prog=MG.t/MG.dur;
+    d.spawn-=dt;
+    if(d.spawn<=0){ d.spawn=Math.max(.24,.5-prog*.2)+rnd()*.14;
+      const roll=rnd(); const v=roll<.16?3:roll<.42?2:1;
+      d.orbs.push({x:40+rnd()*(MW-80),y:-20,vy:95+prog*55+rnd()*55,v,r:v===3?11:v===2?10:9,ph:rnd()*6.28}); }
+    for(let i=d.orbs.length-1;i>=0;i--){ const o=d.orbs[i];
+      o.y+=o.vy*dt; o.x+=Math.sin(MG.t*3+o.ph)*10*dt;
+      if(o.y>MH-220&&Math.abs(o.x-d.px)<110) o.x+=(d.px-o.x)*Math.min(1,4*dt);
+      if(o.y>MH-112&&o.y<MH-44&&Math.abs(o.x-d.px)<62){
+        d.pts+=o.v; snd.catch(); burst(d.parts,o.x,o.y,o.v===3?'#ffd166':o.v===2?'#c9b4ff':'#7fd8ff',7);
+        d.orbs.splice(i,1); continue; }
+      if(o.y>MH+26) d.orbs.splice(i,1); }
+    stepParts(d.parts,dt);
+  },
+  draw(g,d){
+    d.orbs.forEach(o=>drawOrb(g,o));
+    bayGlow(g,d.px);
+    drawCraft(g,d.px,MH-74,1.2,{...craftOpts(MG.t),flame:0});
+    drawParts(g,d.parts);
+    ctext(g,'COLLECTED  '+d.pts+' PTS',18,28,'#c6d6f2',14);
+    timeBar(g,MG.dur-MG.t,MG.dur);
+  },
+  end(d){
+    const par=10, perf=clamp(d.pts/par,0,1);
+    const chips=[stRes('COLLECTED',d.pts+' pts',d.pts>=par?'good':'')];
+    let sc=0;
+    if(alive()){ sc=Math.round(sciPerMo()*(.35+1.15*perf)*(S.month===0?1.5:1));
+      if(sc>0) chips.push(stRes('SCIENCE','+'+sc,'good')); }
+    else chips.push(stRes('SYSTEMS OFFLINE','+0','bad'));
+    S.sci+=sc; endOfMonth(chips);
+    return {perf,headline:d.pts>=par?'HARVEST COMPLETE':'HARVEST '+d.pts+' PTS',chips};
+  },
+};
+
+/* SEND — aim & fire data packets into Earth's moving dish */
+function leadAssist(d){ const sx=d.cx-42, sy=d.cy-46;
+  if(MGP.inside) d.ang=Math.atan2(MGP.y-sy,MGP.x-sx);
+  const tt=Math.max(0,(sx-108)/760), ly=d.dishY+d.dishV*tt;
+  const la=Math.atan2(ly-sy,108-sx);
+  let df=la-d.ang; while(df>Math.PI)df-=6.283; while(df<-Math.PI)df+=6.283;
+  d.lock=Math.abs(df)<.22; if(d.lock) d.ang=la; }
+function firePK(d){
+  if(d.ammo<=0||d.cool>0) return;
+  d.ammo--; d.cool=.2; snd.zap();
+  const a=d.ang;
+  d.pk.push({x:d.cx-42,y:d.cy-46,vx:Math.cos(a)*760,vy:Math.sin(a)*760});
+  d.beams.push({x1:d.cx-42,y1:d.cy-46,x2:d.cx-42+Math.cos(a)*70,y2:d.cy-46+Math.sin(a)*70,ttl:.14});
+}
+GAMES.send={
+  dur:14,
+  init:()=>({dishY:MH/2,dishV:46,ammo:8,hits:0,pk:[],beams:[],parts:[],cool:0,ang:Math.PI,cx:MW-100,cy:MH-86,flash:0,lock:false}),
+  update(dt,d){
+    d.dishY+=d.dishV*dt;
+    if(d.dishY<70||d.dishY>MH-64){ d.dishV*=-1; d.dishY=clamp(d.dishY,70,MH-64); }
+    leadAssist(d);
+    d.cool=Math.max(0,d.cool-dt);
+    if(keys.has(' ')) firePK(d);
+    for(let i=d.pk.length-1;i>=0;i--){ const p=d.pk[i];
+      p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(Math.hypot(p.x-108,p.y-d.dishY)<48){
+        d.hits++; d.flash=.3; snd.coin(); burst(d.parts,108,d.dishY,'#7fd8ff',10);
+        d.pk.splice(i,1); continue; }
+      if(p.x<-30||p.x>MW+30||p.y<-30||p.y>MH+30) d.pk.splice(i,1); }
+    d.flash=Math.max(0,d.flash-dt);
+    d.beams=d.beams.filter(b=>(b.ttl-=dt)>0);
+    stepParts(d.parts,dt);
+  },
+  onDown(p){ const d=MG.d;
+    if(Math.hypot(p.x-d.cx,p.y-d.cy)<90) return;
+    d.ang=Math.atan2(p.y-(d.cy-46),p.x-(d.cx-42)); leadAssist(d); firePK(d); },
+  draw(g,d){
+    drawPlanet(g,34,MH-30,150,['#7fd8ff','#1d4ed8','#0a1440'],MG.t,{clouds:true});
+    // moving dish target
+    const dx=108,dy=d.dishY;
+    g.strokeStyle='#7fd8ff'+(d.flash>0?'ff':'88'); g.lineWidth=2;
+    g.beginPath(); g.arc(dx,dy,26+Math.sin(MG.t*6)*4,0,6.283); g.stroke();
+    if(d.lock){ g.strokeStyle='#3ddc97'; g.lineWidth=1.6; g.setLineDash([4,4]);
+      g.beginPath(); g.arc(dx,dy,40,0,6.283); g.stroke(); g.setLineDash([]);
+      ctext(g,'LOCK',dx+54,dy-42,'#3ddc97',11); }
+    g.fillStyle=d.flash>0?'#eaffff':'#f0f4ff';
+    g.beginPath(); g.ellipse(dx,dy,15,10,0,0,6.283); g.fill();
+    g.strokeStyle='#4a5878'; g.stroke();
+    g.fillStyle='#33c6f0'; g.beginPath(); g.arc(dx,dy-2,3,0,6.283); g.fill();
+    // aim guide
+    g.strokeStyle='#33c6f030'; g.setLineDash([3,9]); g.lineWidth=1.4;
+    g.beginPath(); g.moveTo(d.cx-42,d.cy-46);
+    g.lineTo(d.cx-42+Math.cos(d.ang)*640,d.cy-46+Math.sin(d.ang)*640); g.stroke(); g.setLineDash([]);
+    // beams + packets
+    d.beams.forEach(b=>{ g.globalAlpha=b.ttl/.14; g.strokeStyle='#7fd8ff'; g.lineWidth=2.4;
+      g.beginPath(); g.moveTo(b.x1,b.y1); g.lineTo(b.x2,b.y2); g.stroke(); g.globalAlpha=1; });
+    d.pk.forEach(p=>{ const gl=g.createRadialGradient(p.x,p.y,1,p.x,p.y,14);
+      gl.addColorStop(0,'#eaffff'); gl.addColorStop(.4,'#7fd8ffcc'); gl.addColorStop(1,'#7fd8ff00');
+      g.fillStyle=gl; g.beginPath(); g.arc(p.x,p.y,14,0,6.283); g.fill(); });
+    drawCraft(g,d.cx,d.cy,1.15,{...craftOpts(MG.t),flame:0});
+    drawParts(g,d.parts);
+    // ammo
+    ctext(g,'PACKETS',18,28,'#c6d6f2',12);
+    for(let i=0;i<8;i++){ g.fillStyle=i<d.ammo?'#7fd8ff':'#1a2c48';
+      g.beginPath(); g.arc(30+i*18,44,5,0,6.283); g.fill(); }
+    ctext(g,'LINKED  '+d.hits,18,72,'#aef0d6',13);
+    timeBar(g,MG.dur-MG.t,MG.dur);
+  },
+  end(d){
+    const perf=d.hits/8, chips=[stRes('LINKED',d.hits+'/8',d.hits>=3?'good':'')];
+    if(d.hits>0&&S.sys.ant){
+      const sent=Math.round(S.buf*d.hits/8);
+      const gain=Math.round(sent*groundDl());
+      S.sci+=gain; S.buf-=sent;
+      chips.push(stRes('BEAMED','−'+sent+' data','cy'));
+      chips.push(stRes('SCIENCE','+'+gain,'good'));
+    } else chips.push(stRes('NO LINK','+0','bad'));
+    endOfMonth(chips);
+    return {perf,headline:d.hits>=6?'PERFECT DOWNLINK':d.hits>=3?'DOWNLINK OK':'WEAK LINK',chips};
+  },
+};
+
+/* BALANCE — keep the two drifting power plates level */
+GAMES.balance={
+  dur:10,
+  init:()=>({ang:0,inp:0,goodT:0}),
+  update(dt,d){
+    const drift=Math.sin(MG.t*1.0)*.26+Math.sin(MG.t*1.9)*.11;
+    let t=0;
+    if(keys.has('ArrowLeft')||keys.has('a')) t-=1;
+    if(keys.has('ArrowRight')||keys.has('d')) t+=1;
+    if(MGP.down) t=MGP.x<MW/2?-1:1;
+    d.inp+=(t-d.inp)*Math.min(1,14*dt);
+    d.ang+=((drift-d.ang)*1.4+d.inp*3.8)*dt;
+    if(Math.abs(d.ang)<.16) d.goodT+=dt;
+  },
+  draw(g,d){
+    const px=MW/2, py=MH-118;
+    // green zone
+    g.strokeStyle='#3ddc9755'; g.setLineDash([6,6]); g.lineWidth=2;
+    g.beginPath(); g.moveTo(px-250,py); g.lineTo(px+250,py); g.stroke(); g.setLineDash([]);
+    // beam + plates
+    g.save(); g.translate(px,py); g.rotate(d.ang);
+    const bg=g.createLinearGradient(0,-5,0,5); bg.addColorStop(0,'#c2cde4'); bg.addColorStop(1,'#5d7396');
+    g.fillStyle=bg; rr(g,-235,-5,470,10,5); g.fill();
+    g.strokeStyle='#2c3a5a'; g.lineWidth=1.4; rr(g,-235,-5,470,10,5); g.stroke();
+    [[-235,'🔆','SOLAR'],[115,'🔋','BATT']].forEach(([x0,ic,nm])=>{
+      g.fillStyle='#101c33'; rr(g,x0,-56,120,46,9); g.fill();
+      g.strokeStyle='#33507a'; g.lineWidth=1.5; rr(g,x0,-56,120,46,9); g.stroke();
+      ctext(g,ic,x0+20,-27,'#fff',17,'left');
+      ctext(g,nm,x0+46,-30,'#c6d6f2',12,'left');
+      ctext(g,'PLATE',x0+46,-15,'#5d7396',8.5,'left'); });
+    // energy arc
+    g.strokeStyle='#ffc94d99'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(-175,-58); g.quadraticCurveTo(0,-100,175,-58); g.stroke();
+    g.restore();
+    // pivot
+    g.fillStyle='#33c6f0'; g.beginPath();
+    g.moveTo(px,py-4); g.lineTo(px-22,py+30); g.lineTo(px+22,py+30); g.closePath(); g.fill();
+    g.fillStyle='#0c1526'; g.fillRect(px-30,py+30,60,6);
+    // gauge
+    const gx=MW/2, gy=44;
+    g.strokeStyle='#22385a'; g.lineWidth=7; g.beginPath(); g.arc(gx,gy,34,Math.PI*1.15,Math.PI*1.85); g.stroke();
+    g.strokeStyle='#3ddc97'; g.lineWidth=7; g.beginPath(); g.arc(gx,gy,34,Math.PI*1.42,Math.PI*1.58); g.stroke();
+    const na=-Math.PI/2+clamp(d.ang,-.8,.8)*1.1;
+    g.strokeStyle='#eaf3ff'; g.lineWidth=2.6;
+    g.beginPath(); g.moveTo(gx,gy); g.lineTo(gx+Math.cos(na)*30,gy+Math.sin(na)*30); g.stroke();
+    const bal=Math.abs(d.ang)<.16;
+    ctext(g,bal?'BALANCED':'DRIFTING',gx,gy+58,bal?'#3ddc97':'#ffc94d',12,'center');
+    drawParts(g,d.parts||[]);
+    timeBar(g,MG.dur-MG.t,MG.dur);
+  },
+  end(d){
+    const perf=clamp(d.goodT/MG.dur,0,1), chips=[stRes('STABILITY',Math.round(perf*100)+'%','')];
+    let sc=0;
+    if(alive()){ sc=Math.round(sciPerMo()*(.5+perf));
+      if(perf<.35){ sc=Math.round(sc*.4); chips.push(stRes('⚡ BROWNOUT','power dipped −60%','bad')); }
+      if(sc>0) chips.push(stRes('SCIENCE','+'+sc,'good')); }
+    else chips.push(stRes('SYSTEMS OFFLINE','+0','bad'));
+    S.sci+=sc; endOfMonth(chips);
+    return {perf,headline:Math.round(perf*100)+'% STABLE',chips};
+  },
+};
+
+/* SAVE — vaporize meteors before they strike */
+GAMES.save={
+  dur:12,
+  init:()=>({ang:-Math.PI/2,mets:[],parts:[],beams:[],cool:0,leaks:0,destroyed:0,spawn:.4,shieldUsed:false,absorbed:false,flash:0,shake:0,broke:[]}),
+  update(dt,d){
+    const prog=MG.t/MG.dur, cx=MW/2, cy=MH-112;
+    d.spawn-=dt;
+    if(d.spawn<=0){ d.spawn=(Math.max(.38,.62-prog*.25)+rnd()*.12)/D().rate;
+      const edge=Math.floor(rnd()*3); let x,y;
+      if(edge===0){ x=rnd()*MW; y=-26; } else if(edge===1){ x=-26; y=rnd()*MH*.55; }
+      else { x=MW+26; y=rnd()*MH*.55; }
+      const a=Math.atan2(cy-y,cx-x)+(rnd()-.5)*.26;
+      const sp=(68+prog*45+rnd()*45)*D().spd;
+      d.mets.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:10+rnd()*10,rot:rnd()*6.28,vr:(rnd()-.5)*3}); }
+    d.cool=Math.max(0,d.cool-dt);
+    if(MGP.inside) d.ang=Math.atan2(MGP.y-(cy-30),MGP.x-cx);
+    d.zt=(d.zt||0)-dt; const bx=Math.cos(d.ang), by=Math.sin(d.ang);
+    for(let i=d.mets.length-1;i>=0;i--){ const m=d.mets[i], rx=m.x-cx, ry=m.y-(cy-30);
+      const tt=rx*bx+ry*by, dist=Math.abs(rx*by-ry*bx);
+      if(tt>0&&tt<900&&dist<m.r+7+D().beam){ d.destroyed++; burst(d.parts,m.x,m.y,'#ffc94d',10); d.mets.splice(i,1);
+        if(d.zt<=0){ snd.zap(); d.zt=.12; } } }
+    for(let i=d.mets.length-1;i>=0;i--){ const m=d.mets[i];
+      m.x+=m.vx*dt; m.y+=m.vy*dt; m.rot+=m.vr*dt;
+      if(Math.hypot(m.x-cx,m.y-cy)<50+m.r){
+        d.leaks++; snd.hit(); d.flash=.4; d.shake=.45;
+        burst(d.parts,m.x,m.y,'#ff8f6b',12); d.mets.splice(i,1);
+        if(has('shield')&&!d.shieldUsed){ d.shieldUsed=true; d.absorbed=true; }
+        else if(d.leaks<2){ toast('HULL SCORCHED — DANGER','r'); }
+        else if(d.broke.length===0){ const live=['solar','inst','ant'].filter(k=>S.sys[k]);
+          if(live.length){ const k=live[Math.floor(rnd()*live.length)];
+            S.sys[k]=0; d.broke.push(k); S.brokeLog.push({m:S.month+1,k}); toast(SYSNAME[k]+' KNOCKED OFFLINE','r'); } }
+        continue; }
+      if(m.x<-40||m.x>MW+40||m.y<-40||m.y>MH+40) d.mets.splice(i,1); }
+    stepParts(d.parts,dt);
+    d.beams=d.beams.filter(b=>(b.ttl-=dt)>0);
+    d.flash=Math.max(0,d.flash-dt); d.shake=Math.max(0,d.shake-dt);
+  },
+  onDown(p){},
+  draw(g,d){
+    g.save();
+    if(d.shake>0) g.translate((rnd()-.5)*d.shake*22,(rnd()-.5)*d.shake*22);
+    d.mets.forEach(m=>drawRock(g,m.x,m.y,m.r,m.rot));
+    if(MGP.inside){ g.strokeStyle='#ff9a3dcc'; g.lineWidth=1.6;
+      g.beginPath(); g.arc(MGP.x,MGP.y,10,0,6.283); g.stroke();
+      g.beginPath(); g.moveTo(MGP.x-16,MGP.y); g.lineTo(MGP.x-5,MGP.y); g.moveTo(MGP.x+5,MGP.y); g.lineTo(MGP.x+16,MGP.y);
+      g.moveTo(MGP.x,MGP.y-16); g.lineTo(MGP.x,MGP.y-5); g.moveTo(MGP.x,MGP.y+5); g.lineTo(MGP.x,MGP.y+16); g.stroke(); }
+    const cx=MW/2, cy=MH-112;
+    if(has('shield')&&!d.shieldUsed){
+      g.strokeStyle='#33c6f0'+(Math.sin(MG.t*5)>0?'66':'aa'); g.lineWidth=2;
+      g.setLineDash([10,7]); g.beginPath(); g.arc(cx,cy,74,0,6.283); g.stroke(); g.setLineDash([]);
+      ctext(g,'🛡️ READY',cx,cy-96,'#7fd8ff',11,'center'); }
+    { const x0=cx, y0=cy-30, a=d.ang||0, ex=x0+Math.cos(a)*900, ey=y0+Math.sin(a)*900;
+      g.save(); g.lineCap='round'; g.shadowColor='#ff9a3d'; g.shadowBlur=14;
+      g.strokeStyle='#ff9a3d55'; g.lineWidth=9; g.beginPath(); g.moveTo(x0,y0); g.lineTo(ex,ey); g.stroke();
+      g.strokeStyle='#fff3d6'; g.lineWidth=2.4; g.beginPath(); g.moveTo(x0,y0); g.lineTo(ex,ey); g.stroke(); g.restore(); }
+    drawCraft(g,cx,cy,1.25,{...craftOpts(MG.t),flame:0});
+    drawParts(g,d.parts);
+    g.restore();
+    if(d.flash>0){ g.fillStyle='rgba(255,80,60,'+(d.flash*.35)+')'; g.fillRect(0,0,MW,MH); }
+    ctext(g,'VAPORIZED  '+d.destroyed,18,28,'#c6d6f2',14);
+    if(d.leaks>0) ctext(g,'HITS  '+d.leaks,18,50,'#ff8f8f',13);
+    timeBar(g,MG.dur-MG.t,MG.dur);
+  },
+  end(d){
+    const chips=[stRes('VAPORIZED',d.destroyed,'good')];
+    if(d.leaks===0){ S.sci+=6; chips.push(stRes('PERFECT DEFENSE','+6 sci','good')); }
+    if(d.absorbed) chips.push(stRes('🛡️ SHIELD','absorbed 1 hit','warn'));
+    d.broke.forEach(k=>chips.push(stRes(SYSNAME[k],'BROKEN','bad')));
+    endOfMonth(chips);
+    const perf=clamp(1-d.leaks/5,0,1);
+    return {perf,headline:d.leaks? 'CRAFT HIT ×'+d.leaks : 'CRAFT SECURED',chips};
+  },
+};
+
+/* ================= 5 · END ================= */
+function countUp(el,to){ let t0=null;
+  function f(t){ if(!t0) t0=t; const p=Math.min(1,(t-t0)/1400);
+    el.textContent=Math.round(to*(1-Math.pow(1-p,3)));
+    if(p<1) requestAnimationFrame(f); }
+  requestAnimationFrame(f); }
+function endGame(){
+  $('#toasts').innerHTML=''; show('s-end');
+  const bonus=Math.max(0,Math.floor(S.money/3));
+  const broken=['solar','inst','ant'].filter(k=>!S.sys[k]).length;
+  const final=Math.max(0,S.sci+bonus-broken*5);
+  const goal=Math.round(S.mission.goal*D().goal);
+  const stars=final>=goal?3:final>=goal*.7?2:final>=goal*.4?1:0;
+  const stamp=$('#stamp');
+  const scol=['#ff6b6b','#ffc94d','#3ddc97','#33c6f0'][stars];
+  stamp.textContent=['MISSION FAILED','ROUGH RIDE','SUCCESS','MISSION LEGEND'][stars]+(stars===3?' 🏆':stars===2?' ✅':'');
+  stamp.style.color=scol; stamp.style.borderColor=scol;
+  stamp.style.filter='drop-shadow(0 0 16px '+scol+'55)';
+  const sr=$('#stars-row'); sr.innerHTML='';
+  for(let i=0;i<3;i++){ const s=document.createElement('span'); s.textContent=i<stars?'⭐':'☆';
+    s.style.animationDelay=(0.3+i*0.35)+'s'; s.style.opacity='0'; sr.appendChild(s); }
+  $('#verdict').textContent=['The spacecraft sleeps…','We got something!','Great mission — PI approves!','NASA is calling.'][stars];
+  $('#breakdown').innerHTML=
+    stRes('SCIENCE',S.sci,'good')+
+    stRes('FUNDS BONUS','+'+bonus,'good')+
+    (broken?stRes('DAMAGE','−'+(broken*5),'bad'):'')+
+    stRes('TARGET',goal,'');
+
+  // —— Post-mission analysis (why this score) ——
+  const reasons=[];
+  const matched=GAME.PARTS.filter(p=>p.obj&&inv(p.id)&&p.obj.some(o=>S.objs.includes(o)));
+  const unmatched=GAME.PARTS.filter(p=>p.sci&&inv(p.id)&&(!p.obj||!p.obj.some(o=>S.objs.includes(o))));
+  if(matched.length) reasons.push({ok:true,t:'Matched instruments ('+matched.map(p=>p.name).join(', ')+') earned the ×1.4 science bonus.'});
+  else if(S.objs.length) reasons.push({ok:false,t:'No instrument matched your science goals — you missed the ×1.4 multiplier.'});
+  if(unmatched.length) reasons.push({ok:false,t:'Some science parts ('+unmatched.map(p=>p.name).join(', ')+') did not match goals, so they scored at base rate.'});
+  if((S.overflowTotal||0)>0) reasons.push({ok:false,t:'Data buffer overflowed — '+S.overflowTotal+' units of science data were lost. Larger dish / better ground net / more frequent downlinks would help.'});
+  else if(has('dish')||(S.ground&&S.ground.id!=='mini')) reasons.push({ok:true,t:'Data management held — buffer never overflowed thanks to your communications choices.'});
+  if((S.powerNeg||0)>0) reasons.push({ok:false,t:'Power went negative in '+S.powerNeg+' month(s). Instruments offline or brownouts cost science. More solar / battery or fewer power-hungry parts would fix this.'});
+  else if(inv('solar')) reasons.push({ok:true,t:'Power stayed net-positive every month — solar (and battery) sizing was solid.'});
+  if((S.brokeLog||[]).length) reasons.push({ok:false,t:'Systems knocked offline: '+S.brokeLog.map(b=>SYSNAME[b.k]+' (month '+b.m+')').join(', ')+'. Whipple shield or better meteor performance would reduce this.'});
+  if(S.orbit){
+    if(S.orbit.sciMul>1) reasons.push({ok:true,t:S.orbit.name+' gave a science multiplier of ×'+S.orbit.sciMul+(S.orbit.use?' but needed +'+S.orbit.use+' power': '')+'.'});
+    if(S.orbit.cap<0) reasons.push({ok:false,t:S.orbit.name+' reduced buffer capacity by '+(-S.orbit.cap)+' — tighter data margins.'});
+  }
+  if(!inv('solar')) reasons.push({ok:false,t:'No solar array installed — the craft could not generate power reliably.'});
+  if(stars>=2) reasons.push({ok:true,t:'Final score met or exceeded the mission target of '+goal+'.'});
+  else reasons.push({ok:false,t:'Score ('+final+') fell short of the target ('+goal+'). Revisit instrument match, power margin, and downlink rate.'});
+
+  $('#analysis').innerHTML=reasons.map(r=>
+    `<div class="st" style="width:100%;justify-content:flex-start;gap:10px;text-align:left;padding:8px 12px">
+      <span style="font-size:16px">${r.ok?'✅':'⚠️'}</span>
+      <span style="font-size:12.5px;font-weight:600;color:${r.ok?'#aef0d6':'#ffc9a0'};line-height:1.35">${r.t}</span>
+    </div>`).join('');
+
+  const pr=S.objs[0];
+  $('#matches').innerHTML = pr ? GAME.MATCHES[pr].map(m=>stRes('🛰️',m,'good')).join('') : '';
+  countUp($('#bigscore'),final);
+  const mvp=[...Array(S.crew).keys()].reduce((b,p)=>S.stats[p].s>S.stats[b].s?p:b,0);
+  const rid=Date.now(); saveRun({id:rid,m:S.mission.name,s:final,st:stars,c:S.crew,d:new Date().toLocaleDateString(undefined,{day:'numeric',month:'short'}),mv:S.crew>1?CALL[mvp]:'',df:S.diff}); renderBoards(rid);
+  $('#crewrep').innerHTML=[...Array(S.crew).keys()].map(p=>{ const s=S.stats[p];
+    const rl=RSETS[S.crew].filter((r,ri)=>S.assign[ri]===p).map(r=>r.i).join('');
+    return `<span class="st" style="border-color:${AVCOLORS[p]}"><b>${CALL[p]} ${rl}</b><span>${s.n?Math.round(s.s/s.n*100):0}% avg · ${s.g} great · ${s.a} boosts${S.crew>1&&p===mvp?' 🏅 MVP':''}</span></span>`; }).join('');
+  if(stars>=2){ snd.fan(); for(let k=0;k<3;k++) setTimeout(confetti,k*500); }
+  else if(stars===0) snd.bad();
+}
+function confetti(){ for(let i=0;i<36;i++){ const d=document.createElement('div'); d.className='cf';
+  d.style.left=rnd()*100+'vw'; d.style.background=AVCOLORS[i%4];
+  d.style.animationDelay=(rnd()*.9)+'s'; d.style.animationDuration=(1.5+rnd()*1.3)+'s';
+  document.body.appendChild(d); setTimeout(()=>d.remove(),3400); } }
+
+/* ---------- wire up ---------- */
+$('#mute').onclick=()=>{ MUTE=!MUTE; $('#mute').textContent=MUTE?'🔇':'🔊'; if(!MUTE) snd.click(); };
+$('#to-rocket').onclick=()=>{ show('s-rocket'); renderRocket(); };
+$('#back-build').onclick=()=>{ show('s-build'); renderBuildAll(); };
+$('#do-launch').onclick=doLaunch;
+$('#ov').onclick=skipLaunch;
+$('#again').onclick=()=>{ const c=S.crew, df=S.diff; S=freshState(); S.crew=c; S.diff=df; defRoles(); renderCrew(); show('s-pick'); renderPick(); };
+$('#retry').onclick=()=>{
+  // Keep the same design, reset flight state, go back to build so player can tweak then relaunch
+  const snap=decodeDesign(encodeDesign());
+  if(!snap){ toast('NO DESIGN TO RETRY','r'); return; }
+  const c=S.crew; applyDesign(snap); S.crew=c; defRoles(); renderCrew();
+  // restore full budget for a fair retry (parts already "installed")
+  S.money=Math.round(S.mission.budget*D().bud);
+  let spent=0; GAME.PARTS.forEach(p=>{ spent+=(inv(p.id)||0)*p.cost; });
+  S.money=Math.max(0,S.money-spent);
+  show('s-build'); renderBuildAll(); toast('DESIGN RESTORED · TWEAK OR LAUNCH','y');
+};
+$('#share').onclick=()=>{
+  const code=encodeDesign();
+  if(!code){ toast('FINISH A DESIGN FIRST','r'); return; }
+  const box=$('#sharebox'); box.style.display='block';
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(()=>toast('DESIGN CODE COPIED','g')).catch(()=>{ $('#importcode').value=code; toast('CODE IN BOX · COPY IT','y'); });
+  } else { $('#importcode').value=code; toast('CODE IN BOX · COPY IT','y'); }
+};
+$('#do-import').onclick=()=>{
+  const d=decodeDesign($('#importcode').value);
+  if(!d){ toast('INVALID DESIGN CODE','r'); return; }
+  const c=S.crew; S=freshState(); S.crew=c; defRoles(); applyDesign(d); renderCrew();
+  show('s-build'); renderBuildAll(); toast('DESIGN LOADED · '+d.mission.name,'g');
+};
+$('#helpbtn').onclick=()=>$('#help').classList.add('on');
+$('#helpok').onclick=()=>$('#help').classList.remove('on');
+$('#help').onclick=e=>{ if(e.target.id==='help') $('#help').classList.remove('on'); };
+
+S=freshState(); defRoles();
+renderPick();
+</script>
+</body>
+</html>
