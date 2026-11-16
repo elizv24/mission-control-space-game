@@ -126,7 +126,7 @@ The project is contained in a single HTML file and does not require a package ma
 ## Run locally
 
 1. Download or clone this repository.
-2. Open `MissionControl.html` in a modern web browser.
+2. Open `index.html` in a modern web browser.
 3. Select a crew size, difficulty, science objectives and destination.
 4. Build and configure your spacecraft, then launch the mission.
 
@@ -140,7 +140,7 @@ From the project directory, run:
 python -m http.server 8000
 ```
 
-Then open [http://localhost:8000/MissionControl.html](http://localhost:8000/MissionControl.html).
+Then open [http://localhost:8000/index.html](http://localhost:8000/index.html).
 
 ## Data and scientific context
 
