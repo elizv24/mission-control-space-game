@@ -164,7 +164,7 @@ The README describes the submitted implementation. For the official challenge br
 
 ```text
 .
-├── MissionControl.html   # Complete browser game (HTML, CSS and JavaScript)
+├── index.html   # Complete browser game (HTML, CSS and JavaScript)
 ├── README.md             # Project overview and instructions
 └── LICENSE               # MIT License
 ```
